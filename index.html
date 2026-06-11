@@ -1,0 +1,3432 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100vw;
+      max-width: none;
+      height: 100vh;
+      background: #111;
+      border: none;
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    #gameUI {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 16px;
+      z-index: 10;
+      background: transparent !important;
+      padding: 10px;
+      border: none !important;
+    }
+
+    #score,
+    #health,
+    #coordinates {
+      margin-bottom: 5px;
+    }
+
+    #minimap {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 200px;
+      height: 150px;
+      background: transparent !important;
+      border: none !important;
+      z-index: 10;
+    }
+
+    #minimapCanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    #instructions {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 14px;
+      opacity: 0.7;
+      z-index: 10;
+    }
+
+    #performanceInfo {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      font-size: 12px;
+      color: #888;
+      z-index: 10;
+      text-align: right;
+    }
+
+    #liveTopWords {
+      position: absolute;
+      top: 120px;
+      left: 10px;
+      width: 180px;
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+      font-size: 15px;
+      color: #fff;
+      /* 纯白色 */
+      z-index: 10;
+      pointer-events: none;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    #liveTopWords::-webkit-scrollbar {
+      width: 0;
+      /* 隐藏滚动条 */
+    }
+
+    .liveWordEntry {
+      margin-bottom: 4px;
+      /* 移除了透明度和颜色区分，统一纯白 */
+    }
+
+    .liveWordRank {
+      display: none;
+      /* 隐藏排名数字 */
+    }
+
+    .liveWordText {
+      color: #fff;
+      /* 纯白色 */
+    }
+
+    .liveWordLength {
+      display: none;
+      /* 隐藏长度标注 */
+    }
+
+    #shortcuts {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      z-index: 5;
+      background: transparent !important;
+      padding: 5px 10px;
+      border: none !important;
+    }
+
+    #pauseScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      z-index: 30;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-y: auto;
+      padding: 20px 0;
+      display: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 300ms ease-in-out, visibility 300ms ease-in-out;
+    }
+
+    #pauseScreen.visible {
+      display: flex;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    #pauseContent {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 500px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    #pauseTitle {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #ffffff;
+      border: none !important;
+      background: transparent !important;
+    }
+
+    .pauseStats {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 8px 20px;
+      margin-bottom: 20px;
+      text-align: left;
+      width: 100%;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseStatRow {
+      display: flex;
+      justify-content: space-between;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseStatLabel {
+      color: #aaa;
+      flex: 0 0 40%;
+      text-align: left;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseStatValue {
+      color: #fff;
+      font-weight: bold;
+      flex: 0 0 60%;
+      text-align: right;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseTopWords {
+      margin-top: 15px;
+      text-align: left;
+      width: 100%;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseWordsToggle {
+      cursor: pointer;
+      margin-bottom: 10px;
+      padding: 5px 0;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      user-select: none;
+      background: transparent !important;
+      border: none !important;
+      text-decoration: none !important;
+    }
+
+    .pauseWordsToggle:hover {
+      color: #aaa;
+    }
+
+    .toggleIcon {
+      display: inline-block;
+      transition: transform 0.3s;
+      font-size: 14px;
+      margin-left: 5px;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .toggleIcon.collapsed {
+      transform: rotate(-90deg);
+    }
+
+    .pauseWordsContent {
+      max-height: 300px;
+      overflow-y: auto;
+      transition: max-height 0.3s ease-out;
+      padding-right: 5px;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseWordsContent::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .pauseWordsContent::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .pauseWordsContent::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 5px;
+    }
+
+    .pauseWordsContent::-webkit-scrollbar-thumb:hover {
+      background: #777;
+    }
+
+    .pauseWordsContent.collapsed {
+      max-height: 0;
+      overflow: hidden;
+    }
+
+    .pauseWordEntry {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      padding: 3px 5px;
+      border-bottom: none !important;
+      /* 去掉下划线 */
+      background: transparent !important;
+    }
+
+    .pauseWordRank {
+      color: #aaa;
+      margin-right: 10px;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseWordText {
+      flex-grow: 1;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseWordLength {
+      color: #aaa;
+      margin-left: 10px;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .pauseButtons {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+
+    .pauseBtn,
+    button,
+    input[type="button"],
+    input[type="submit"],
+    .newWorldBtn,
+    #clobtn,
+    #quickSaveBtn,
+    #newSaveBtn,
+    #cancelNewSaveBtn,
+    #newWorldBtn,
+    #respawnText,
+    #pauseWordsToggle,
+    label[for="quickImportFile"],
+    div[id*="Btn"],
+    div[class*="Btn"],
+    div[id*="btn"],
+    div[class*="btn"] {
+      display: block;
+      width: 100%;
+      padding: 12px 20px;
+      background: transparent !important;
+      color: #fff !important;
+      border: none !important;
+      font-size: 16px;
+      text-align: center;
+      cursor: pointer;
+      text-decoration: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
+      border-bottom: none !important;
+      border-top: none !important;
+      border-left: none !important;
+      border-right: none !important;
+    }
+
+    .pauseBtn:hover,
+    button:hover,
+    input[type="button"]:hover,
+    input[type="submit"]:hover,
+    .newWorldBtn:hover,
+    #clobtn:hover,
+    #quickSaveBtn:hover,
+    #newSaveBtn:hover,
+    #cancelNewSaveBtn:hover,
+    #newWorldBtn:hover,
+    #respawnText:hover,
+    #pauseWordsToggle:hover,
+    label[for="quickImportFile"]:hover,
+    div[id*="Btn"]:hover,
+    div[class*="Btn"]:hover,
+    div[id*="btn"]:hover,
+    div[class*="btn"]:hover {
+      color: #aaa !important;
+      text-decoration: none !important;
+      border-bottom: none !important;
+    }
+
+    .pauseBtn.primary,
+    button.primary,
+    input[type="button"].primary,
+    input[type="submit"].primary {
+      background: transparent !important;
+      color: #fff !important;
+      border: none !important;
+      text-decoration: none !important;
+    }
+
+    .pauseBtn.primary:hover,
+    button.primary:hover,
+    input[type="button"].primary:hover,
+    input[type="submit"].primary:hover {
+      color: #aaa !important;
+      text-decoration: none !important;
+    }
+
+    #newSaveModal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      /* 扩大为全屏 */
+      height: 100%;
+      /* 扩大为全屏 */
+      background: rgba(0, 0, 0, 0.6) !important;
+      /* 半透明黑色遮罩 */
+      z-index: 40;
+      display: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 300ms ease-in-out, visibility 300ms ease-in-out;
+      /* 内容居中排列 */
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border: none !important;
+      padding: 0;
+      /* 取消原有padding，由内部面板控制 */
+    }
+
+    #newSaveModal.visible {
+      display: flex;
+      /* 改为 flex 以便居中内部面板 */
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    #newSaveModal h2 {
+      margin-bottom: 50px;
+      color: #fff;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+      text-align: left;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #aaa;
+      background: transparent !important;
+      border: none !important;
+    }
+
+
+    .modalInput,
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 0;
+      background: transparent !important;
+      border: none !important;
+      border-bottom: 1px solid #fff !important;
+      color: #fff !important;
+      font-size: 16px;
+      box-sizing: border-box;
+      outline: none !important;
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
+      box-shadow: none !important;
+      text-decoration: none !important;
+    }
+
+    .modalInput:focus,
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      border-bottom-color: #aaa !important;
+    }
+
+    .modalButtons {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    #deathScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      z-index: 25;
+      display: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 300ms ease-in-out, visibility 300ms ease-in-out;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #deathScreen.visible {
+      display: flex;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    #deathScore {
+      position: absolute;
+      top: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: #fff;
+      text-align: center;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    #respawnText {
+      font-size: 48px;
+      color: #fff !important;
+      cursor: pointer;
+      text-align: center;
+      user-select: none;
+      transition: transform 0.2s;
+      background: transparent !important;
+      border: none !important;
+      padding: 12px 20px;
+      text-decoration: none !important;
+    }
+
+    #respawnText:hover {
+      transform: scale(1.1);
+      color: #aaa !important;
+    }
+
+    .settings-group {
+      margin-top: 20px;
+      width: 100%;
+      text-align: left;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .setting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .setting-label {
+      color: #aaa;
+      font-size: 14px;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .setting-value {
+      color: #fff;
+      font-weight: bold;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 24px;
+      background: transparent !important;
+      border: 1px solid #fff !important;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .toggle-switch.active {
+      background: transparent !important;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(26px);
+    }
+
+
+
+    button,
+    input[type="button"],
+    input[type="submit"],
+    .pauseBtn,
+    .newWorldBtn,
+    #clobtn,
+    #quickSaveBtn,
+    #newSaveBtn,
+    #cancelNewSaveBtn,
+    #newWorldBtn,
+    #respawnText,
+    #pauseWordsToggle,
+    label[for="quickImportFile"] {
+      text-decoration: none !important;
+      border: none !important;
+      border-bottom: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    <div id="newSaveModal">
+      <form id="newSaveForm">
+        <div class="input-group">
+          <label for="inputWorldWidth">World Width</label>
+          <input type="number" id="inputWorldWidth" class="modalInput" placeholder="e.g., 20000">
+        </div>
+        <div class="input-group">
+          <label for="inputWorldHeight">World Height</label>
+          <input type="number" id="inputWorldHeight" class="modalInput" placeholder="e.g., 20000">
+        </div>
+        <div class="input-group">
+          <label for="inputSpawnCount">Monster Spawn Count (-1 for infinite)</label>
+          <input type="number" id="inputSpawnCount" class="modalInput" placeholder="e.g., -1">
+        </div>
+        <div class="input-group">
+          <label for="inputSpawnMin">Min Spawn Interval (ms)</label>
+          <input type="number" id="inputSpawnMin" class="modalInput" placeholder="e.g., 2300">
+        </div>
+        <div class="input-group">
+          <label for="inputSpawnMax">Max Spawn Interval (ms)</label>
+          <input type="number" id="inputSpawnMax" class="modalInput" placeholder="e.g., 3900">
+        </div>
+        <div class="input-group">
+          <label for="inputPlayerHealth">Player Health</label>
+          <input type="number" id="inputPlayerHealth" class="modalInput" placeholder="e.g., 20">
+        </div>
+        <div class="input-group">
+          <label for="inputPlayerSpeed">Player Speed</label>
+          <input type="number" id="inputPlayerSpeed" class="modalInput" placeholder="e.g., 8">
+        </div>
+        <div class="modalButtons">
+          <button type="button" id="newWorldBtn" class="pauseBtn newWorldBtn">NEW</button>
+          <button type="button" id="cancelNewSaveBtn" class="pauseBtn">CANCEL</button>
+        </div>
+        <div class="input-group">
+          <label for="inputBlackHoleCount">Black Hole Count</label>
+          <input type="number" id="inputBlackHoleCount" class="modalInput" placeholder="e.g., 1">
+        </div>
+      </form>
+    </div>
+    <div id="gameUI">
+      <div id="score">SCORE 0</div>
+      <div id="health">HEALTH 20</div>
+      <div id="coordinates">X 0, Y 0</div>
+      <div id="deathCount">DEATHS 0</div>
+      <div id="liveTopWords"></div>
+    </div>
+    <div id="minimap">
+      <canvas id="minimapCanvas"></canvas>
+    </div>
+    <div id="shortcuts"> N: QUICK SAVE | L: LOAD GAME | Z: RESUME </div>
+    <!-- 暂停界面 -->
+    <div id="pauseScreen">
+      <div id="pauseContent">
+        <h2 id="pauseTitle">GAME PAUSED</h2>
+        <div class="pauseStats">
+          <div class="pauseStatRow">
+            <span class="pauseStatLabel">SCORE</span>
+            <span class="pauseStatValue" id="pauseScore">0</span>
+          </div>
+          <div class="pauseStatRow">
+            <span class="pauseStatLabel">HEALTH</span>
+            <span class="pauseStatValue" id="pauseHealth">20</span>
+          </div>
+          <div class="pauseStatRow">
+            <span class="pauseStatLabel">DEATHS</span>
+            <span class="pauseStatValue" id="pauseDeathCount">0</span>
+          </div>
+          <div class="pauseStatRow">
+            <span class="pauseStatLabel">POS</span>
+            <span class="pauseStatValue" id="pausePosition">X 0, Y 0</span>
+          </div>
+          <div class="pauseStatRow">
+            <span class="pauseStatLabel">ENTITIES</span>
+            <span class="pauseStatValue" id="pauseEntities">0</span>
+          </div>
+          <div class="pauseStatRow">
+            <span class="pauseStatLabel">DEATHS</span>
+            <span class="pauseStatValue" id="pauseDeathCount">0</span>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="setting-item">
+            <span class="setting-label">Skip Death Menu</span>
+            <div class="toggle-switch" id="skipGameMenuToggle"></div>
+          </div>
+          <!-- Theme Toggle -->
+          <div class="setting-item">
+            <span class="setting-label">Light Mode</span>
+            <div class="toggle-switch" id="themeToggle"></div>
+          </div>
+        </div>
+        <div class="pauseTopWords">
+          <div class="pauseWordsToggle" id="pauseWordsToggle"> TOP WORDS <span class="toggleIcon collapsed">▼</span>
+          </div>
+          <div class="pauseWordsContent collapsed" id="pauseWordsContent">
+            <div id="pauseTopWordsList"></div>
+          </div>
+        </div>
+        <div class="pauseButtons">
+          <button id="clobtn" class="pauseBtn primary">CLOSE (Z)</button>
+          <button id="quickSaveBtn" class="pauseBtn">QUICK SAVE (C)</button>
+          <button id="newSaveBtn" class="pauseBtn">NEW SAVE</button>
+          <label for="quickImportFile" class="pauseBtn">LOAD SAVE</label>
+          <button id="exportTopWordsBtn" class="pauseBtn">EXPORT TOP WORDS</button>
+          <input type="file" id="quickImportFile" style="display: none;">
+        </div>
+      </div>
+    </div>
+    <!-- 死亡界面 -->
+    <div id="deathScreen">
+      <div id="deathScore">0</div>
+      <div id="respawnText">REPLAY</div>
+    </div>
+    <div id="instructions"> WASD: MOVE | SPACE: SHOOT WORD | Z: COLLECT WORD | X: SHOOT ALL | B: SHOOT WORD | R: DROP
+      WORD | T: DROP ALL | INVISIBLE BLACK HOLE HUNTS OBJECTS </div>
+    <div id="performanceInfo">
+      <div id="fps">FPS 0</div>
+      <div id="entities">ENTITIES 0</div>
+    </div>
+  </div>
+  <script>
+    let canvas, ctx, minimapCanvas, minimapCtx, scoreElement, healthElement, speedElement, coordinatesElement, blackHoleMassElement, fpsElement, entitiesElement, bestWordsListElement, allWordsListElement, wordCountElement, saveStatusElement, wordSearchElement, pauseScreen, pauseScoreElement, pauseHealthElement, pauseSpeedElement, pausePositionElement, pauseEntitiesElement, pauseTopWordsListElement, pauseBlackHoleElement, quickImportFile, newSaveBtn, newSaveModal, newSaveForm, cancelNewSaveBtn, inputWorldWidth, inputWorldHeight, inputentitypeed, inputPlayerHealth, inputPlayerSpeed, newWorldBtn, worldWidth, worldHeight, cameraX, cameraY, viewWidth, viewHeight, maxViewOffset, viewOffsetX, viewOffsetY, targetViewOffsetX, targetViewOffsetY, viewOffsetSmoothness, playerX, playerY, score, health, maxHealth, entity, bullets, walls, projectiles, bulletShards, isDead, isPaused, mouseX, mouseY, mouseInGame, allWords, gameSpeed, lastSpeedIncrease, speedIncreaseInterval, lastTime, frameCount, fps, keys, playerSpeed, playerVx, playerVy, playerAngle, words, numbers, entitypawnInterval;
+    let isSpacePressed = false;
+    let spawnTimeout = null;
+    let lastShootTime = 0;
+    let cTime = 30;
+    let shootCooldown = 150;
+    let spawnCount = -1;
+    let spawnMax = 3900;
+    let spawnMin = 1400;
+    let inventory = [];
+    let maxInventorySize = 7;
+    let scatteredWords = [];
+    let deathCount = 0;
+    let deathCountElement;
+    let skipGameover = false;
+    let isLightMode = false;
+    let initialBlackHoleCount = 1;
+    const ENTITY_TYPE = {
+      NORMAL: 0, NUMBER: 1, SCATTER: 2, WALL: 3, PLAYER: 4,
+      BULLET: 5, PROJECTILE: 6, SHARD: 7, WRITER: 8
+    };
+
+    const BEHAVIOR = {
+      WANDER: 0,
+      HUNT: 1,
+      EVADE: 2
+    };
+
+    const ENTITY_SIZES = {
+      PLAYER: 18,
+      MONSTER: 20,
+      WALL: 20,
+      SHARD: 15,
+      BULLET: 10,
+      PROJECTILE: 12
+    };
+
+    const INVULN_FRAMES = 16;
+
+    const BH_X = 0, BH_Y = 1, BH_MASS = 2, BH_ANGLE = 3, BH_TARGET = 4, BH_SPEED = 5, BH_ABS = 6, BH_WA = 7, BH_WT = 8, BH_TT = 9, BH_TI = 10;
+
+    const E_ID = 0, E_WORD = 1, E_X = 2, E_Y = 3, E_VX = 4, E_VY = 5, E_SPEED = 6, E_SIZE = 7, E_TYPE = 8, E_ANGLE = 9,
+      E_BEHAVIOR = 10, E_WANDER_ANGLE = 11, E_WANDER_TIMER = 12, E_WANDER_INTERVAL = 13,
+      E_CAN_THROW = 14, E_CAN_COMB = 15, E_CAN_WALL = 16, E_CAN_ATK = 17,
+      E_IS_THROWING = 18, E_IS_COMBINING = 19, E_TARGET = 20, E_VIEW_DIST = 21,
+      E_SEEN_PLAYER = 22, E_LAST_SEEN_TIME = 23, E_PUSH_FORCE = 24,
+      E_LIFETIME = 25, E_BOUNCE_COUNT = 26, E_INVULN_TIME = 27, E_DAMAGE = 28, E_OWNER = 29, E_INVENTORY = 30, E_SHOOT_COOLDOWN = 31;
+    let blackHoles = [];
+
+    function init() {
+      canvas = document.getElementById("gameCanvas");
+      ctx = canvas.getContext("2d");
+      minimapCanvas = document.getElementById("minimapCanvas");
+      minimapCtx = minimapCanvas.getContext("2d");
+      scoreElement = document.getElementById("score");
+      healthElement = document.getElementById("health");
+      coordinatesElement = document.getElementById("coordinates");
+      fpsElement = document.getElementById("fps");
+      entitiesElement = document.getElementById("entities");
+      pauseScreen = document.getElementById("pauseScreen");
+      deathCountElement = document.getElementById("deathCount");
+      pauseScoreElement = document.getElementById("pauseScore");
+      pauseHealthElement = document.getElementById("pauseHealth");
+      pausePositionElement = document.getElementById("pausePosition");
+      pauseEntitiesElement = document.getElementById("pauseEntities");
+      pauseTopWordsListElement = document.getElementById("pauseTopWordsList");
+      pauseDeathCountElement = document.getElementById("pauseDeathCount");
+      quickImportFile = document.getElementById("quickImportFile");
+      newSaveBtn = document.getElementById("newSaveBtn");
+      newSaveModal = document.getElementById("newSaveModal");
+      newSaveForm = document.getElementById("newSaveForm");
+      cancelNewSaveBtn = document.getElementById("cancelNewSaveBtn");
+      inputWorldWidth = document.getElementById("inputWorldWidth");
+      inputWorldHeight = document.getElementById("inputWorldHeight");
+      inputPlayerHealth = document.getElementById("inputPlayerHealth");
+      inputPlayerSpeed = document.getElementById("inputPlayerSpeed");
+      newWorldBtn = document.getElementById("newWorldBtn");
+      setupCanvas();
+      setupTheme();
+      worldWidth = 2e4; worldHeight = 2e4; cameraX = 0; cameraY = 0;
+      viewWidth = window.innerWidth; viewHeight = window.innerHeight;
+      maxViewOffset = 150; viewOffsetX = 0; viewOffsetY = 0;
+      targetViewOffsetX = 0; targetViewOffsetY = 0; viewOffsetSmoothness = .15;
+      playerX = worldWidth / 2; playerY = worldHeight / 2; playerAngle = 0;
+
+      blackHoles = [];
+      for (let i = 0; i < initialBlackHoleCount; i++) {
+        blackHoles.push([Math.random() * worldWidth, Math.random() * worldHeight, 1, 0, null, 0.5, 110, Math.random() * 6.283, 0, 0, 300]);
+      }
+
+      score = 0; health = 20; maxHealth = 20;
+      entities = []; walls = []; inventory = []; // 合并初始化
+      isDead = false; isPaused = false;
+      mouseX = viewWidth / 2; mouseY = viewHeight / 2; mouseInGame = true;
+      allWords = []; gameSpeed = .8;
+      lastTime = performance.now(); frameCount = 0; fps = 0;
+      keys = { w: false, a: false, s: false, d: false };
+      playerSpeed = 10; playerVx = 0; playerVy = 0;
+
+      words = ["CAT", "COW", "destiny", "DOG", "MEOW~", ":;'", "2026", "emo", "are", "youself", "myself", "theme", "Brown", "MISS", "Mr", "chicken", "FEED", "{}", "[]", "<></>", "wink", "fell", "EASY", "Hi", "Nice", "job", "could", "their", "sit", "meet", "mean", "tobe", "yet", "Oops", "V.", "blue", "white", "red", "green", "yellow", "pink", "purple", "gray", "black", "break", "predictive", "Over", "BEST", "AWWWWWWWWWWWWWWWWWWWWWWWWWWWW", "Head", "end", "pig", "success", "hurt", "Don't Give Up", "want", "slow", "default", "so", "un", "Please", "Care", "much", "tell", "worse", "bad", "accept", "against", "Hero", "BIRD", "FISH", "LION", "BEAR", "WOLF", "DEER", "interesting", "Character", "color", "SEE", "YOU", "OWO", "I", "are", "do", "by", "at", "is", "'s", "ing", "...", "1234567890", "TREE", "STAR", "MOON", "light", "mystery", "secret", "pack", "SUN", "RAIN", "FIRE", "WIND", "SNOW", "WEATHER", "WOW", "NO", "hug", "heh", "KAWAII", "SENSEI", "right", "EnSimulate", "Attack", "Defence", "protect", "safe", "out", "Determination", "BRAVE", "PATIENCE", "LEFT", "RIGHT", "play", "Now", "learning", "study", "PIXEL", "TOP", "BETTER", "BAD", "large", "sunshine", "whistle", "will", "I'll", "maybe", "October", "Christmas", "November", "August", "July", "June", "March", "February", "April", "January", "ThisIs", "December", "2025/12/17_11AM_54_59", "Sepember", "Hill", ":(", ":)", ":|", "=)", "=|", "=(", "O+O", "O-O", "pretty", "Experience", "Useful", "Cloudy", "Holiday", "Role Play Game", "music", "Romatic", "sound", "Note", "NiceToMeetYou", "score", "health", "Neptune", "line", "link", "mini", "-", "What's", "?!", "fixed", "mixed", "summer", "autumn", "time", "", "was", "famous", "also", "think", "won't", "very", "they", "goes", "cook", "Saturn", "wwwwwwwwwww2", "ZZZZZZZZZZ", "zzzzzzzzzz", "BOOK", "PEN", "DESK", "CHAIR", "DOOR", "WINDOW", "silence", "confident", "FLOOR", "FALL", "HIT", "COLD", "THANK", "-", "KING", "KILL", "YES", "SIR", "LISTEN", "ME", "WHAT", "English", "Miss", "THREE", "FENCE", "PAINT", "WALL", "EIGHT", "SEVEN", "TWO", "OW", "OWL", "EARTH", "NIGHT", "Cheerful", "PERSONALITY", "INDEPENDENT", "TRIP", "TRAVEL", "OPEN", ";p", "COMPUTER", "KEYBOARD", "MONITOR", "PROGRAM", "ALGORITHM", "FUNCTION", "LOVE", "HOPE", "Darkness", "Like", "Halloween~", "HELP", "ANIMATION", "MONSTERS", "DOWN", "SENSE", "BUTTERFLY", "SHOP", "SHEEP", "cos", "sin", "tan", "village", "lava", "town", "jupiter", "plants", "animals", "Fish", "city", "Golem", "story", "terrific", "impressive", "remarkable", "glamorous", "extra-ordinary", "appealing", "outstanding", "awesome", "strong", "delicious", "~^`", "solution", "Eve", "mistake", "zero", "seem", "tasty", "were", "syllable", "future", "cancel", "there", "say", "well"];
+      numbers = ["-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+
+      setupEventListeners();
+      loadSaveData();
+      spawnMonster();
+      entities.forEach(n => { n[E_SPEED] *= 1.02 });
+      gameLoop();
+      monsterSpawnInterval = setInterval(() => { isDead || isPaused || spawnMonster() }, 2000 / gameSpeed);
+      setInterval(() => { fps = frameCount, frameCount = 0, fpsElement.textContent = `FPS ${fps}` }, 1e3);
+    }
+
+
+    function setupTheme() {
+      const styleTag = document.createElement('style');
+      styleTag.id = 'dynamic-theme-styles';
+      document.head.appendChild(styleTag);
+
+      const savedTheme = localStorage.getItem("gameTheme");
+      if (savedTheme === 'light') {
+        isLightMode = true;
+        document.body.classList.add('light-mode');
+        updateThemeStyles();
+        const themeToggle = document.getElementById("themeToggle");
+        if (themeToggle) themeToggle.classList.add("active");
+      }
+    }
+
+    function updateThemeStyles() {
+      const styleTag = document.getElementById('dynamic-theme-styles');
+      if (!styleTag) return;
+
+      if (isLightMode) {
+        styleTag.innerHTML = `
+		      body { background: #e0e0e0 !important; color: #333 !important; }
+		      #gameContainer { background: #f5f5f5 !important; }
+		      #gameUI, #score, #health, #coordinates, #deathCount { color: #333 !important; }
+		      #shortcuts, #instructions { color: #555 !important; }
+		      #performanceInfo { color: #666 !important; }
+		      
+		      #pauseScreen { background: rgba(255,255,255,0.9) !important; }
+		      #pauseTitle, .pauseStatValue, .pauseBtn, button, .pauseWordsToggle { color: #000 !important; }
+		      .pauseStatLabel { color: #555 !important; }
+		      .pauseWordEntry { border-bottom: 1px solid rgba(0,0,0,0.1) !important; }
+		      #deathScreen { background: rgba(255,255,255,0.8) !important; }
+		      #deathScore, #respawnText { color: #000 !important; }
+		      .toggle-switch { border-color: #333 !important; }
+		      .toggle-switch::after { background: #333 !important; }
+		      .modalInput, input[type="text"], input[type="number"] { border-bottom: 1px solid #333 !important; color: #333 !important; }
+		      .input-group label { color: #555 !important; }
+		    `;
+      } else {
+        styleTag.innerHTML = ``;
+      }
+    }
+
+    function toggleTheme() {
+      isLightMode = !isLightMode;
+      if (isLightMode) {
+        document.body.classList.add('light-mode');
+        localStorage.setItem("gameTheme", "light");
+      } else {
+        document.body.classList.remove('light-mode');
+        localStorage.setItem("gameTheme", "dark");
+      }
+      updateThemeStyles();
+    }
+
+
+    function setupCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      minimapCanvas.width = 200;
+      minimapCanvas.height = 150;
+      window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth, canvas.height = window.innerHeight, viewWidth = canvas.width, viewHeight = canvas.height
+      })
+    }
+
+    function loadSaveData() {
+      const n = localStorage.getItem("lvGameSave");
+      if (n) try {
+        const t = JSON.parse(n);
+        t.allWords && Array.isArray(t.allWords) && (allWords = t.allWords)
+      } catch (t) {
+        console.error("Failed to load save data:", t)
+      }
+    }
+
+    function saveGameData() {
+      const n = {
+        allWords: allWords,
+        timestamp: Date.now()
+      };
+      localStorage.setItem("lvGameSave", JSON.stringify(n))
+    }
+
+    function exportSave() {
+      if (allWords.length !== 0) {
+        const sortedWords = [...allWords].sort((n, t) => n.length !== t.length ? t.length - n.length : t.count - n.count);
+        const now = new Date();
+        let n = now.getFullYear() + "/" + String(now.getMonth() + 1) + "/" + String(now.getDate()) + " / " + String(now.getHours()) + ":" + String(now.getMinutes()) + ":" + String(now.getSeconds()) + "\n\n";
+
+        sortedWords.forEach((word, index) => {
+          n += `TOP ${index + 1} ${word.text}  |  l: ${word.length}, count: ${word.count}\n`;
+        });
+
+        const f = new Blob([n], {
+          type: "text/plain"
+        }),
+          i = URL.createObjectURL(f),
+          t = document.createElement("a");
+        t.href = i;
+        t.download = `WordVs_record_${Date.now()}.txt`; // 改了文件名
+        document.body.appendChild(t);
+        t.click();
+        document.body.removeChild(t);
+        URL.revokeObjectURL(i)
+      }
+    }
+
+    function importSave(n) {
+      const t = new FileReader;
+      t.onload = n => {
+        const t = n.target.result;
+        parseImportData(t)
+      };
+      t.readAsText(n)
+    }
+
+    function parseImportData(n) {
+      try {
+        const i = n.split("\n"),
+          t = [];
+        i.forEach(n => {
+          const i = n.match(/^(.+)\s+TOP(\d+)$/);
+          if (i) {
+            const n = i[1].trim(),
+              r = parseInt(i[2]);
+            if (n && r >= 1 && r <= 10) {
+              const i = t.findIndex(t => t.text === n);
+              i === -1 ? t.push({
+                text: n,
+                length: n.length,
+                count: 1
+              }) : t[i].count++
+            }
+          }
+        });
+        t.length > 0 && (t.forEach(n => {
+          const t = allWords.findIndex(t => t.text === n.text);
+          t !== -1 ? allWords[t].count += n.count : allWords.push(n)
+        }), saveGameData(), displayBestWords())
+      } catch (t) {
+        console.error("Failed to parse import data:", t)
+      }
+    }
+
+    function clearSave() {
+      confirm("Are you sure you want to clear all saved words?") && (allWords = [], localStorage.removeItem("lvGameSave"), displayBestWords())
+    }
+
+    function quickSave() {
+      if (!isDead) {
+        const saveData = [];
+        saveData.push(playerX); saveData.push(playerY); saveData.push(playerSpeed);
+        saveData.push(deathCount); saveData.push(score); saveData.push(health);
+        saveData.push(gameSpeed); saveData.push(worldWidth); saveData.push(worldHeight); saveData.push(playerAngle);
+
+        saveData.push(blackHoles.length);
+        blackHoles.forEach(bh => {
+          saveData.push(bh[BH_X]); saveData.push(bh[BH_Y]); saveData.push(bh[BH_MASS]); saveData.push(bh[BH_ANGLE]);
+          saveData.push(bh[BH_SPEED]); saveData.push(bh[BH_ABS]); saveData.push(bh[BH_WA]); saveData.push(bh[BH_WT]);
+          saveData.push(bh[BH_TT]); saveData.push(bh[BH_TI]);
+        });
+
+        saveData.push(spawnCount); saveData.push(spawnMax); saveData.push(spawnMin); saveData.push(maxInventorySize);
+
+        // 核心改造：变长实体保存
+        saveData.push(entities.length);
+        entities.forEach(e => {
+          saveData.push(e[E_TYPE]); // 第1行：类型
+          saveData.push(e.length);  // 第2行：数组长度(核心！)
+          for (let k = 0; k < e.length; k++) saveData.push(e[k]); // 原样推入所有数据
+        });
+
+        saveData.push(walls.length);
+        walls.forEach(wall => {
+          saveData.push(wall.id); saveData.push(wall.word); saveData.push(wall.x); saveData.push(wall.y);
+          saveData.push(wall.width); saveData.push(wall.height); saveData.push(wall.angle || 0);
+        });
+
+        saveData.push(inventory.length);
+        inventory.forEach(word => { saveData.push(word); });
+
+        const dataString = saveData.join('\n');
+        localStorage.setItem("lvQuickSave", dataString);
+        const blob = new Blob([dataString], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `enSimulate_${Date.now()}.txt`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+      }
+    }
+
+    function quickLoad(file) {
+      const loadData = (data) => {
+        function parseNumber(value, defaultValue = 0) { if (value === undefined || value === null) return defaultValue; const num = parseFloat(value); return isNaN(num) ? defaultValue : num; }
+        function parseString(value, defaultValue = "") { if (value === undefined || value === null) return defaultValue; return String(value); }
+
+        const lines = data.split('\n');
+        let i = 0;
+        const nextNum = (def = 0) => i < lines.length ? parseNumber(lines[i++], def) : def;
+        const nextStr = (def = "") => i < lines.length ? parseString(lines[i++], def) : def;
+        const nextInt = (def = 0) => { if (i >= lines.length) return def; const val = parseInt(lines[i++]); return isNaN(val) ? def : val; };
+        const nextSafeCount = (def = 0, max = 5000) => { const val = nextInt(def); return Math.max(0, Math.min(val, max)); };
+
+        entities = []; walls = []; inventory = []; isDead = false; isPaused = false;
+
+        playerX = nextNum(worldWidth / 2); playerY = nextNum(worldHeight / 2); playerSpeed = nextNum(7);
+        deathCount = nextNum(0); score = nextNum(0); health = nextNum(20);
+        gameSpeed = nextNum(0.8); worldWidth = nextNum(2e4); worldHeight = nextNum(2e4); playerAngle = nextNum(0);
+
+        blackHoles = [];
+        const bhCount = nextSafeCount(1, 50);
+        for (let b = 0; b < bhCount; b++) {
+          blackHoles.push([nextNum(worldWidth / 2), nextNum(worldHeight / 2), nextNum(1), nextNum(0), null, nextNum(0.5), nextNum(110), nextNum(Math.random() * 6.283), nextNum(0), nextNum(0), nextNum(300)]);
+        }
+
+        spawnCount = nextInt(-1); spawnMax = nextInt(2400); spawnMin = nextInt(1300); maxInventorySize = nextSafeCount(7, 50);
+
+        // 核心改造：变长实体读取
+        const entityCount = nextSafeCount(0, 5000);
+        for (let j = 0; j < entityCount; j++) {
+          const type = nextInt(ENTITY_TYPE.NORMAL); // 读类型
+          const len = nextInt(24); // 读长度 (默认24防止崩溃)
+          const e = [];
+          for (let k = 0; k < len; k++) {
+            // 前2个是数字，第3个(word)是字符串，后面全是数字
+            if (k === 1) e.push(nextStr());
+            else e.push(nextNum());
+          }
+          if (e.length > 0) e[E_TYPE] = type; // 强制覆盖类型，防错位
+          entities.push(e);
+        }
+
+        const wallCount = nextSafeCount(0, 500);
+        for (let j = 0; j < wallCount; j++) {
+          const wall = { id: nextNum(), word: nextStr(), x: nextNum(), y: nextNum(), width: nextNum(), height: nextNum(), angle: nextNum(0) };
+          if (!isNaN(wall.x) && !isNaN(wall.y) && !isNaN(wall.width)) { wall.lines = wrapText(wall.word, Math.floor(wall.width / 15)); walls.push(wall); }
+        }
+
+        const inventoryCount = nextSafeCount(0, 50);
+        for (let j = 0; j < inventoryCount; j++) { inventory.push(nextStr()); }
+
+        updateScore(); updateHealth();
+        deathCountElement.textContent = `DEATHS ${deathCount}`;
+        updateCamera();
+        clearInterval(monsterSpawnInterval);
+        monsterSpawnInterval = setInterval(() => { isDead || isPaused || spawnMonster() }, 2000 / gameSpeed);
+        scheduleNextSpawn();
+      };
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => { loadData(event.target.result); isPaused = false; pauseScreen.classList.remove('visible'); };
+        reader.onerror = (e) => console.error("File Loader Failed", e);
+        reader.readAsText(file);
+      } else {
+        const data = localStorage.getItem("lvQuickSave");
+        if (data) { loadData(data); isPaused = false; pauseScreen.classList.remove('visible'); }
+      }
+    }
+
+
+
+    function pauseGame() {
+      if (!isDead) {
+        isPaused = true;
+        updatePauseMenuStats();
+        updatePauseTopWords();
+        pauseScreen.style.display = "flex";
+        setTimeout(() => pauseScreen.classList.add('visible'), 10);
+      }
+    }
+
+    function updatePauseMenuStats() {
+      pauseScoreElement.textContent = score;
+      pauseHealthElement.textContent = health;
+      pausePositionElement.textContent = `X ${Math.floor(playerX)}, Y ${Math.floor(playerY)}`;
+      pauseEntitiesElement.textContent = entities.length + walls.length; // 统一计算实体数
+      pauseDeathCountElement.textContent = deathCount;
+    }
+
+    function updatePauseTopWords() {
+      pauseTopWordsListElement.innerHTML = "";
+      if (allWords.length === 0) {
+        pauseTopWordsListElement.innerHTML = '<div class="noWords">No words created yet</div>';
+        return;
+      }
+      const sortedWords = [...allWords].sort((a, b) => a.length !== b.length ? b.length - a.length : b.count - a.count);
+      const top10Words = sortedWords.slice(0, 10);
+      top10Words.forEach((word, index) => {
+        const entryDiv = document.createElement("div");
+        entryDiv.className = "pauseWordEntry";
+        const rankSpan = document.createElement("span"); rankSpan.className = "pauseWordRank"; rankSpan.textContent = `TOP ${index + 1}`;
+        const textSpan = document.createElement("span"); textSpan.className = "pauseWordText"; textSpan.textContent = word.text;
+        const lengthSpan = document.createElement("span"); lengthSpan.className = "pauseWordLength"; lengthSpan.textContent = word.length;
+        entryDiv.appendChild(rankSpan); entryDiv.appendChild(textSpan); entryDiv.appendChild(lengthSpan);
+        pauseTopWordsListElement.appendChild(entryDiv);
+      });
+    }
+
+    function resumeGame() {
+      isPaused = false;
+      // 恢复游戏时，重置按键状态，防止因为按住空格导致瞬间射击
+      isSpacePressed = false;
+      keys = { w: false, a: false, s: false, d: false };
+
+      pauseScreen.classList.remove('visible');
+      setTimeout(() => { if (!pauseScreen.classList.contains('visible')) pauseScreen.style.display = "none"; }, 300);
+    }
+
+    function exportMap() {
+      const saveData = [];
+      saveData.push(playerX); saveData.push(playerY); saveData.push(playerSpeed); saveData.push(playerAngle);
+      saveData.push(score); saveData.push(health); saveData.push(gameSpeed); saveData.push(worldWidth); saveData.push(worldHeight);
+
+      // 替换旧版单体黑洞为多黑洞数组
+      saveData.push(blackHoles.length);
+      blackHoles.forEach(bh => {
+        saveData.push(bh[BH_X]); saveData.push(bh[BH_Y]); saveData.push(bh[BH_MASS]); saveData.push(bh[BH_ANGLE]);
+        saveData.push(bh[BH_SPEED]); saveData.push(bh[BH_ABS]); saveData.push(bh[BH_WA]); saveData.push(bh[BH_WT]);
+        saveData.push(bh[BH_TT]); saveData.push(bh[BH_TI]);
+      });
+
+      saveData.push(entity.length);
+      entity.forEach(monster => {
+        saveData.push(monster.id); saveData.push(monster.word); saveData.push(monster.x); saveData.push(monster.y);
+        saveData.push(monster.vx); saveData.push(monster.vy); saveData.push(monster.speed); saveData.push(monster.size);
+        saveData.push(monster.type); saveData.push(monster.angle || 0);
+      });
+      saveData.push(walls.length);
+      walls.forEach(wall => {
+        saveData.push(wall.id); saveData.push(wall.word); saveData.push(wall.x); saveData.push(wall.y);
+        saveData.push(wall.width); saveData.push(wall.height); saveData.push(wall.angle || 0);
+      });
+      const dataString = saveData.join('\n');
+      const blob = new Blob([dataString], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `lv_map_${Date.now()}.txt`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importMap(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          // 【极速解析引擎】使用正则一次性提取所有数字，避免原生 parseFloat 逐行解析导致主线程卡死
+          const numMatch = e.target.result.match(/-?\d+\.?\d*/g) || [];
+          const nums = numMatch.map(Number);
+          const lines = e.target.result.split('\n');
+          let lineIdx = 0;
+
+          // 快速提取纯字符串（用于非数字的文本，如词汇）
+          const nextStr = () => (lineIdx < lines.length) ? lines[lineIdx++] : "";
+          // 快速提取数字并推进底层索引
+          const next = () => nums.shift() || 0;
+          const nextInt = () => parseInt(nums.shift()) || 0;
+          const nextBool = () => nums.shift() === 1;
+
+          // 1. 读取玩家基础数据 (严格对齐游戏 quickSave 顺序)
+          state.player.x = next(); state.player.y = next(); state.player.speed = next();
+          state.meta.death = next(); state.meta.score = next(); state.meta.hp = next();
+          next(); // gameSpeed
+          state.world.w = next(); state.world.h = next(); state.player.angle = next();
+
+          // 同步底层字符串指针 (跳过已读取的10个数字和可能存在的换行)
+          lineIdx = e.target.result.indexOf('\n', e.target.result.indexOf(
+            String(state.player.angle),
+            e.target.result.indexOf(String(state.world.h))
+          )) + 1;
+
+          // 2. 读取多黑洞数据
+          const bhCount = nextInt();
+          state.blackHoles = [];
+          for (let j = 0; j < bhCount; j++) {
+            state.blackHoles.push([next(), next(), next(), next()]);
+          }
+          lineIdx += bhCount * 4; // 字符串指针同步跳跃
+
+          // 3. 读取生成设置
+          state.spawns.count = next(); state.spawns.max = next();
+          state.spawns.min = next(); state.spawns.invSize = next();
+          lineIdx += 4;
+
+          // 4. 读取怪物 (字符串和数字混合区，需严格对齐)
+          const mCount = nextInt();
+          lineIdx++; // 跳过数量行
+          state.entities.entity = [];
+          for (let j = 0; j < mCount; j++) {
+            const id = next();
+            const word = nextStr(); // 提取词汇字符串
+            const x = next(), y = next();
+            const vx = next(), vy = next();
+            const speed = next(), size = next();
+            const monsterType = nextInt();
+            const angle = next();
+            const canThrow = nextBool();
+            const canCombination = nextBool();
+            const canToWall = nextBool();
+            const canToAttackPlayer = nextBool();
+
+            state.entities.entity.push({
+              id, word, x, y, vx, vy, speed, size,
+              monsterType, angle, canThrow, canCombination,
+              canToWall, canToAttackPlayer, type: 'monster', inventory: []
+            });
+            lineIdx += 13; // 每个怪物13行数据
+          }
+
+          // 5. 读取墙壁
+          const wCount = nextInt();
+          lineIdx++;
+          state.entities.walls = [];
+          for (let j = 0; j < wCount; j++) {
+            state.entities.walls.push({
+              id: next(), word: nextStr(), x: next(), y: next(),
+              width: next(), height: next(), angle: next(), type: 'wall'
+            });
+            lineIdx += 7;
+          }
+
+          // 6. 读取散落词
+          const sCount = nextInt();
+          lineIdx++;
+          state.entities.words = [];
+          for (let j = 0; j < sCount; j++) {
+            state.entities.words.push({
+              id: next(), word: nextStr(), x: next(), y: next(), angle: next(), type: 'word'
+            });
+            lineIdx += 5;
+          }
+
+          // 7. 跳过子弹、抛射物、碎片 (按数量跳行)
+          let skipCount = nextInt(); lineIdx++;
+          for (let j = 0; j < skipCount * 7; j++) { next(); lineIdx++; }
+          skipCount = nextInt(); lineIdx++;
+          for (let j = 0; j < skipCount * 7; j++) { next(); lineIdx++; }
+          skipCount = nextInt(); lineIdx++;
+          for (let j = 0; j < skipCount * 7; j++) { next(); lineIdx++; }
+
+          // 8. 读取玩家背包
+          const invCount = nextInt();
+          lineIdx++;
+          state.player.inventory = [];
+          for (let j = 0; j < invCount; j++) {
+            state.player.inventory.push(nextStr());
+          }
+
+          // 同步 UI
+          syncGlobalInputs();
+          selected = null;
+          view.x = state.player.x; view.y = state.player.y; view.scale = 1.0;
+          saveHistory();
+          alert('游戏存档导入成功！');
+        } catch (err) {
+          console.error(err);
+          alert('导入失败：存档格式损坏或不兼容');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function wrapText(n, t) {
+      const r = n.split(""), u = [];
+      let i = "";
+      for (let n = 0; n < r.length; n++) i.length >= t ? (u.push(i), i = r[n]) : i += r[n];
+      return i && u.push(i), u
+    }
+
+    function hideNewSaveModal() {
+      newSaveModal.classList.remove('visible');
+      setTimeout(() => { newSaveModal.style.display = "none"; }, 300);
+    }
+
+    function showNewSaveModal() {
+      if (!isPaused && !isDead) pauseGame();
+      if (!inputSpawnCount || !inputSpawnMin || !inputSpawnMax) return;
+      inputSpawnCount.value = spawnCount;
+      inputSpawnMin.value = spawnMin;
+      inputSpawnMax.value = spawnMax;
+      inputPlayerHealth.value = health;
+      inputPlayerSpeed.value = playerSpeed;
+      inputWorldWidth.value = worldWidth;
+      inputWorldHeight.value = worldHeight;
+
+      // 【新增】填入当前黑洞数量
+      document.getElementById("inputBlackHoleCount").value = initialBlackHoleCount;
+
+      newSaveModal.style.display = "flex";
+      setTimeout(() => newSaveModal.classList.add('visible'), 10);
+    }
+
+    function createNewWorld() {
+      clearInterval(monsterSpawnInterval);
+      if (spawnTimeout) clearTimeout(spawnTimeout);
+      const newSpawnCount = parseInt(inputSpawnCount.value) ?? -1;
+      const newPlayerHealth = parseInt(inputPlayerHealth.value) ?? 20;
+      const newPlayerSpeed = parseFloat(inputPlayerSpeed.value) ?? 10;
+      const newWorldWidth = parseInt(inputWorldWidth.value) ?? 5000;
+      const newWorldHeight = parseInt(inputWorldHeight.value) ?? 5000;
+      const newSpawnMin = parseInt(inputSpawnMin.value) ?? 1000;
+      const newSpawnMax = parseInt(inputSpawnMax.value) ?? 3000;
+
+      const parsed = parseInt(document.getElementById("inputBlackHoleCount").value);
+      initialBlackHoleCount = isNaN(parsed) ? 1 : parsed;
+
+      entities = []; walls = []; inventory = []; allWords = []; // 统一清理
+      worldWidth = newWorldWidth; worldHeight = newWorldHeight;
+      playerX = worldWidth / 2; playerY = worldHeight / 2; playerAngle = 0; cameraX = 0; cameraY = 0;
+      score = 0; health = newPlayerHealth; maxHealth = newPlayerHealth; playerSpeed = newPlayerSpeed;
+      gameSpeed = 0.8; isDead = false; isPaused = false;
+      spawnCount = newSpawnCount; spawnMin = newSpawnMin; spawnMax = newSpawnMax; deathCount = 0;
+
+      blackHoles = [];
+      for (let i = 0; i < initialBlackHoleCount; i++) {
+        blackHoles.push([Math.random() * worldWidth, Math.random() * worldHeight, 1, 0, null, 0.5, 110, Math.random() * 6.283, 0, 0, 300]);
+      }
+
+      updateScore(); updateHealth(); updateDeathCount();
+      coordinatesElement.textContent = `X ${Math.floor(playerX)}, Y ${Math.floor(playerY)}`;
+
+      hideNewSaveModal();
+      pauseScreen.classList.remove('visible');
+      pauseScreen.style.display = "none";
+
+      const deathScreen = document.getElementById("deathScreen");
+      if (deathScreen) { deathScreen.classList.remove('visible'); deathScreen.style.display = "none"; }
+
+      scheduleNextSpawn();
+    }
+
+    function setupEventListeners() {
+      const elements = {
+        pauseWordsToggle: document.getElementById("pauseWordsToggle"),
+        skipGameMenuToggle: document.getElementById("skipGameMenuToggle"),
+        themeToggle: document.getElementById("themeToggle"),
+        newSaveBtn: document.getElementById("newSaveBtn"),
+        cancelNewSaveBtn: document.getElementById("cancelNewSaveBtn"),
+        newWorldBtn: document.getElementById("newWorldBtn"),
+        respawnText: document.getElementById("respawnText"),
+        clobtn: document.getElementById("clobtn"),
+        quickSaveBtn: document.getElementById("quickSaveBtn"),
+        quickImportFile: document.getElementById("quickImportFile"),
+        exportBtn: document.getElementById("exportBtn"),
+        importFile: document.getElementById("importFile"),
+        clearSaveBtn: document.getElementById("clearSaveBtn"),
+        exportMapBtn: document.getElementById("exportMapBtn"),
+        importMapFile: document.getElementById("importMapFile"),
+        restartBtn: document.getElementById("restartBtn"),
+        respawnBtn: document.getElementById("respawnBtn"),
+        deathScreen: document.getElementById("deathScreen"),
+        deathScore: document.getElementById("deathScore"),
+        exportTopWordsBtn: document.getElementById("exportTopWordsBtn"),
+      };
+
+      if (elements.themeToggle) {
+        elements.themeToggle.addEventListener("click", toggleTheme);
+        if (isLightMode) elements.themeToggle.classList.add("active");
+      }
+      if (elements.pauseWordsToggle) {
+        elements.pauseWordsToggle.addEventListener("click", function () {
+          const content = document.getElementById("pauseWordsContent");
+          const icon = this.querySelector(".toggleIcon");
+          content.classList.toggle("collapsed");
+          icon.classList.toggle("collapsed");
+        });
+      }
+      if (elements.skipGameMenuToggle) {
+        elements.skipGameMenuToggle.addEventListener("click", function () {
+          skipGameover = !skipGameover;
+          this.classList.toggle("active");
+          localStorage.setItem("skipGameMenu", skipGameover);
+        });
+      }
+      if (elements.newSaveBtn) elements.newSaveBtn.addEventListener("click", () => showNewSaveModal());
+      if (elements.cancelNewSaveBtn) elements.cancelNewSaveBtn.addEventListener("click", () => hideNewSaveModal());
+      if (elements.newWorldBtn) elements.newWorldBtn.addEventListener("click", () => { createNewWorld(); updateDeathCount(); });
+      if (elements.respawnText) elements.respawnText.addEventListener("click", () => { hideDeathScreen(); respawnPlayer(); });
+      if (elements.clobtn) elements.clobtn.addEventListener("click", () => resumeGame());
+      if (elements.quickSaveBtn) {
+        elements.quickSaveBtn.addEventListener("click", () => {
+          quickSave();
+          const dataString = localStorage.getItem("lvQuickSave");
+          if (dataString) {
+            const downloadLink = document.createElement('a');
+            downloadLink.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataString);
+            downloadLink.download = `enSimu_${Date.now()}.txt`;
+            document.body.appendChild(downloadLink); downloadLink.click(); document.body.removeChild(downloadLink);
+          }
+        });
+      }
+      if (elements.quickImportFile) elements.quickImportFile.addEventListener("change", n => { const t = n.target.files[0]; t && quickLoad(t); n.target.value = "" });
+      if (elements.exportTopWordsBtn) elements.exportTopWordsBtn.addEventListener("click", () => exportSave());
+      canvas.addEventListener("mousemove", n => { const t = canvas.getBoundingClientRect(); mouseX = n.clientX - t.left; mouseY = n.clientY - t.top; mouseInGame = !0; updateViewOffset() });
+      canvas.addEventListener("mouseenter", () => mouseInGame = !0);
+      canvas.addEventListener("mouseleave", () => mouseInGame = !1);
+      document.addEventListener("mousemove", n => { if (!mouseInGame) { const r = canvas.getBoundingClientRect(), t = n.clientX - r.left, i = n.clientY - r.top; mouseX = t < 0 ? 0 : t > viewWidth ? viewWidth : t; mouseY = i < 0 ? 0 : i > viewHeight ? viewHeight : i; updateViewOffset() } });
+      document.addEventListener("keydown", n => {
+        const t = n.key.toLowerCase();
+        if (t === "n") { n.preventDefault(); quickSave(); return; }
+        if (t === "p") { n.preventDefault(); isPaused || pauseGame(); return; }
+        if (t === "z") {
+          n.preventDefault();
+          if (isPaused) resumeGame(); // 暂停时按Z恢复游戏
+          else collectScatteredWord(); // 非暂停时按Z捡词
+          return;
+        }
+        if (t === "v") {
+          const n = ["gameUI", "minimap", "instructions", "shortcuts", "performanceInfo"],
+            t = document.getElementById(n[0]);
+          if (!t.fadeInterval) {
+            const i = parseFloat(t.style.opacity) || 1,
+              r = i <= 0;
+            n.forEach(n => {
+              const t = document.getElementById(n);
+              if (!t.fadeInterval)
+                if (r) {
+                  let i = 0;
+                  t.fadeInterval = setInterval(() => {
+                    i += .1;
+                    t.style.opacity = i;
+                    const r = n === "instructions" ? .7 : 1;
+                    i >= r && (clearInterval(t.fadeInterval), t.fadeInterval = null, t.style.pointerEvents = "auto")
+                  }, 20)
+                } else {
+                  let i = parseFloat(t.style.opacity) || (n === "instructions" ? .7 : 1);
+                  t.fadeInterval = setInterval(() => {
+                    i -= .1, t.style.opacity = i, i <= 0 && (clearInterval(t.fadeInterval), t.fadeInterval = null, t.style.pointerEvents = "none")
+                  }, 20)
+                }
+            })
+          }
+        }
+        if (t === " ") { n.preventDefault(); isSpacePressed = true; return; }
+        if (t === "x") { n.preventDefault(); if (!isPaused) shootAllInventoryWords(); return; }
+        if (t === "t") { n.preventDefault(); if (!isPaused) dropFirstWord(); return; }
+        if (t === "r") { n.preventDefault(); if (!isPaused) dropAllInventoryWords(); return; }
+        if (t === "l") { n.preventDefault(); if (!isDead && !isPaused) if (elements.quickImportFile) elements.quickImportFile.click(); return; }
+        isDead || isPaused || (t in keys && (keys[t] = !0, n.preventDefault()));
+      });
+      document.addEventListener("keyup", n => {
+        const t = n.key.toLowerCase();
+
+        if (t === " ") {
+          isSpacePressed = false;
+          return;
+        }
+        t in keys && (keys[t] = !1, n.preventDefault());
+      });
+    }
+
+    function updateViewOffset() {
+      const n = viewWidth / 2, t = viewHeight / 2, r = (mouseX - n) / n, u = (mouseY - t) / t;
+      targetViewOffsetX = r * maxViewOffset; targetViewOffsetY = u * maxViewOffset;
+      const i = Math.sqrt(targetViewOffsetX * targetViewOffsetX + targetViewOffsetY * targetViewOffsetY);
+      if (i > maxViewOffset) { const n = maxViewOffset / i; targetViewOffsetX *= n; targetViewOffsetY *= n }
+    }
+
+    function smoothUpdateViewOffset() { viewOffsetX += (targetViewOffsetX - viewOffsetX) * viewOffsetSmoothness; viewOffsetY += (targetViewOffsetY - viewOffsetY) * viewOffsetSmoothness }
+
+    function updateCamera() {
+      smoothUpdateViewOffset();
+      let n = playerX - viewWidth / 2 + viewOffsetX, t = playerY - viewHeight / 2 + viewOffsetY;
+      if (cameraX = Math.max(0, Math.min(worldWidth - viewWidth, n)), cameraY = Math.max(0, Math.min(worldHeight - viewHeight, t)), cameraX !== n) { const n = playerX - cameraX, t = viewWidth / 2, i = t - n; viewOffsetX += i * .1; viewOffsetX = Math.max(-maxViewOffset, Math.min(maxViewOffset, viewOffsetX)) }
+      if (cameraY !== t) { const n = playerY - cameraY, t = viewHeight / 2, i = t - n; viewOffsetY += i * .1; viewOffsetY = Math.max(-maxViewOffset, Math.min(maxViewOffset, viewOffsetY)) }
+    }
+
+    const skillChance = 0.4;
+    function scheduleNextSpawn() {
+        if (spawnTimeout) clearTimeout(spawnTimeout);
+
+        if (isDead) return;
+
+        // 【修复】只有 spawnCount === 0 时才停止，-1 和其他正数都继续
+        if (spawnCount === 0) return;
+
+        const minInterval = Math.max(100, spawnMin || 1000);
+        const maxInterval = Math.max(minInterval + 100, spawnMax || 3000);
+        const randomDelay = Math.random() * (maxInterval - minInterval) + minInterval;
+
+        spawnTimeout = setTimeout(() => {
+          if (!isDead) {
+            if (!isPaused) {
+              spawnMonster();
+            } else {
+              scheduleNextSpawn(); // 暂停时重新排队
+            }
+          }
+        }, randomDelay / gameSpeed);
+      }
+
+    function spawnMonster() {
+       if (spawnCount > 0) {
+          spawnCount--;
+        } else if (spawnCount === 0) {
+          return;  // 生成次数用尽
+        }
+
+      const isNumber = Math.random() < 0.3;
+      let type = ENTITY_TYPE.NORMAL;
+
+      if (isNumber) {
+        type = ENTITY_TYPE.NUMBER;
+      } else if (Math.random() < 0.2) {
+        type = ENTITY_TYPE.SCATTER;
+      } else if (Math.random() < 0.1) {
+        type = ENTITY_TYPE.WRITER;
+      }
+
+      let chosenWord = isNumber ? numbers[Math.floor(Math.random() * numbers.length)] : words[Math.floor(Math.random() * words.length)];
+
+      let spawnX, spawnY;
+      const spawnDistance = 800;
+      do { const angle = Math.random() * Math.PI * 2; spawnX = playerX + Math.cos(angle) * spawnDistance; spawnY = playerY + Math.sin(angle) * spawnDistance; } while (isInView(spawnX, spawnY));
+
+      if (type === ENTITY_TYPE.SCATTER) {
+        entities.push([
+          Date.now() + Math.random(), chosenWord, spawnX, spawnY, 0, 0, 0, 20, ENTITY_TYPE.SCATTER, 0,
+          BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0
+        ]);
+      } else {
+        let canAtk;
+        if (type === ENTITY_TYPE.WRITER) canAtk = false;
+        else if (type === ENTITY_TYPE.NUMBER) canAtk = Math.random() < 0.05;
+        else canAtk = Math.random() < 0.4;
+
+        entities.push([
+          Date.now() + Math.random(), chosenWord, spawnX, spawnY,
+          isNumber ? (Math.random() - 0.5) * 2 : 0, isNumber ? (Math.random() - 0.5) * 2 : 0,
+          (0.8 + Math.random() * 0.3) * gameSpeed, 20, type, 0,
+          BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 60,   // 10~13
+          !isNumber && Math.random() < 0.05,  // 14: E_CAN_THROW
+          !isNumber && Math.random() < 0.4,   // 15: E_CAN_COMB
+          !isNumber && Math.random() < 0.3,   // 16: E_CAN_WALL
+          canAtk,                              // 17: E_CAN_ATK (修复！不再被0覆盖)
+          false,                               // 18: E_IS_THROWING
+          false,                               // 19: E_IS_COMBINING
+          null,                                // 20: E_TARGET
+          300,                                 // 21: E_VIEW_DIST
+          false,                               // 22: E_SEEN_PLAYER
+          0,                                   // 23: E_LAST_SEEN_TIME
+          isNumber ? 3 : 0,                    // 24: E_PUSH_FORCE
+          0,                                   // 25: E_LIFETIME
+          0,                                   // 26: E_BOUNCE_COUNT
+          0,                                   // 27: E_INVULN_TIME
+          0,                                   // 28: E_DAMAGE
+          0,                                   // 29: E_OWNER
+          type === ENTITY_TYPE.WRITER ? [] : null, // 30: E_INVENTORY
+          0                                    // 31: E_SHOOT_COOLDOWN
+        ]);
+      }
+
+      if (!isDead && !isPaused && spawnCount !== 0) { scheduleNextSpawn(); }
+    }
+
+
+
+    function shootFirstInventoryWord() {
+      if (inventory.length === 0) return;
+      const word = inventory.shift();
+      const angle = Math.atan2(cameraY + mouseY - playerY, cameraX + mouseX - playerX);
+      entities.push([
+        Date.now() + Math.random(), word, playerX, playerY, Math.cos(angle) * 8, Math.sin(angle) * 8, 8, ENTITY_SIZES.MONSTER,
+        ENTITY_TYPE.BULLET, angle * (180 / Math.PI), BEHAVIOR.WANDER, 0, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0, 0, 0, INVULN_FRAMES, word.length, 0
+      ]);
+    }
+
+    function shootAllInventoryWords() {
+      if (inventory.length === 0) return;
+      const wordsToShoot = [...inventory]; inventory = [];
+      wordsToShoot.forEach((word, index) => {
+        setTimeout(() => {
+          const angle = Math.atan2(cameraY + mouseY - playerY, cameraX + mouseX - playerX);
+          entities.push([Date.now() + Math.random(), word, playerX, playerY, Math.cos(angle) * 8, Math.sin(angle) * 8, 8, ENTITY_SIZES.MONSTER, ENTITY_TYPE.BULLET, angle * (180 / Math.PI), BEHAVIOR.WANDER, 0, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0, 0, 0, INVULN_FRAMES, word.length, 0]);
+        }, index * cTime);
+      });
+    }
+
+    function dropFirstWord() {
+      if (inventory.length === 0) return;
+      const word = inventory.shift();
+      // 散落词：24位
+      entities.push([Date.now() + Math.random(), word, playerX + (Math.random() - 0.5) * 50, playerY + (Math.random() - 0.5) * 50, 0, 0, 0, 20, ENTITY_TYPE.SCATTER, 0, BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0]);
+    }
+
+    function dropAllInventoryWords() {
+      if (inventory.length === 0) return;
+      const wordsToDrop = [...inventory]; inventory = [];
+      wordsToDrop.forEach((word, index) => {
+        setTimeout(() => {
+          entities.push([Date.now() + Math.random(), word, playerX + (Math.random() - 0.5) * 100, playerY + (Math.random() - 0.5) * 100, 0, 0, 0, 20, ENTITY_TYPE.SCATTER, 0, BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0]);
+        }, index * 50);
+      });
+    }
+
+    function dropInventoryOnDeath(x, y, wordsArray) {
+      if (!wordsArray || wordsArray.length === 0) return;
+      wordsArray.forEach(word => {
+        const wordText = typeof word === 'string' ? word : String(word);
+        entities.push([Date.now() + Math.random(), wordText, x + (Math.random() - 0.5) * 150, y + (Math.random() - 0.5) * 150, 0, 0, 0, 20, ENTITY_TYPE.SCATTER, 0, BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0]);
+      });
+    }
+
+    function updateScatteredWords() {
+      scatteredWords.forEach(word => {
+        const gravityForce = calculateGravitationalForce(word.x, word.y);
+        word.vx += gravityForce.x * 0.5; word.vy += gravityForce.y * 0.5;
+        const wordSpeed = Math.sqrt(word.vx * word.vx + word.vy * word.vy);
+        if (wordSpeed > 0.5) {
+          const targetAngle = Math.atan2(word.vy, word.vx) * (180 / Math.PI) + 90;
+          if (word.angle == null) word.angle = 0;
+          let angleDiff = targetAngle - word.angle;
+          while (angleDiff > 180) angleDiff -= 360; while (angleDiff < -180) angleDiff += 360;
+          word.angle += angleDiff * (Math.abs(angleDiff) > 90 ? 0.3 : 0.1);
+        }
+        word.vx *= 0.95; word.vy *= 0.95;
+        let nextX = word.x + word.vx; let nextY = word.y + word.vy;
+        let wallCollision = false;
+        for (let wall of walls) {
+          if (checkOBBCollision(word.x, word.y, 40, 40, word.angle || 0,
+            wall.x, wall.y, wall.width, wall.height, wall.angle || 0)) {
+            wallCollision = true;
+            break;
+          }
+        }
+        if (wallCollision) { word.vx *= -0.5; word.vy *= -0.5; }
+        else { word.x = nextX; word.y = nextY; }
+        word.x = Math.max(ENTITY_SIZES.MONSTER, Math.min(worldWidth - ENTITY_SIZES.MONSTER, word.x));
+        word.y = Math.max(ENTITY_SIZES.MONSTER, Math.min(worldHeight - ENTITY_SIZES.MONSTER, word.y));
+      });
+    }
+
+    function isInView(n, t, i = 0, r = 0) { const f = cameraX, e = cameraX + viewWidth, o = cameraY, s = cameraY + viewHeight, u = 200; return n + i >= f - u && n - i <= e + u && t + r >= o - u && t - r <= s + u }
+
+    function findNearestTarget() {
+      let t = null, n = Infinity; const i = 800;
+      entity.forEach(r => { const u = getDistance({ x: playerX, y: playerY }, { x: r.x, y: r.y }); u < n && u <= i && (n = u, t = { x: r.x, y: r.y, type: "monster" }) });
+      walls.forEach(r => { const u = getDistance({ x: playerX, y: playerY }, { x: r.x, y: r.y }); u < n && u <= i && (n = u, t = { x: r.x, y: r.y, type: "wall" }) });
+      return t;
+    }
+
+    function calculateGravitationalForce(x, y, entityVx = 0, entityVy = 0, isPlayer = false) {
+      let totalForceX = 0, totalForceY = 0;
+      for (let i = 0; i < blackHoles.length; i++) {
+        const bh = blackHoles[i];
+        const dx = bh[BH_X] - x, dy = bh[BH_Y] - y;
+        const distanceSq = dx * dx + dy * dy;
+        const distance = Math.sqrt(distanceSq);
+        if (distance < 1) continue;
+
+        // 【恢复旧版狂暴引力常数】让黑洞重新拥有恐怖的吸力！
+        let G = 8000000;
+        if (distance < 500 + Math.pow(bh[BH_MASS], 1 / 3) * 80) G = 30000000;
+        let radialForce = (G * bh[BH_MASS]) / distanceSq;
+
+        const nx = dx / distance, ny = dy / distance;
+        const radialVelocity = (entityVx * nx) + (entityVy * ny);
+        let tangentialForceX = 0, tangentialForceY = 0;
+
+        if (radialVelocity < -0.5 && distance < 1500) {
+          const escapeSpeed = Math.abs(radialVelocity);
+          const spiralStrength = Math.min(escapeSpeed * 0.15, 1.5) * (1 - distance / 1500);
+          tangentialForceX = -ny * spiralStrength;
+          tangentialForceY = nx * spiralStrength;
+        }
+
+        if (distance < 400 && !isPlayer) radialForce *= (1 + (1 - distance / 400) * 2);
+        if (distance < bh[BH_ABS] * 0.5) radialForce = 0;
+
+        totalForceX += (nx * radialForce) + tangentialForceX;
+        totalForceY += (ny * radialForce) + tangentialForceY;
+      }
+      return { x: totalForceX, y: totalForceY };
+    }
+
+    // ========== 斜边碰撞修复补丁 ==========
+      // 直接在浏览器控制台执行，会覆盖原有的 updatePlayer 函数
+
+    function updatePlayer() {
+        // 1. 键盘输入
+        let inputX = 0, inputY = 0;
+        if (keys.a) inputX = -1;
+        if (keys.d) inputX = 1;
+        if (keys.w) inputY = -1;
+        if (keys.s) inputY = 1;
+
+        const MOVE_SPEED = 5;
+        let moveX = inputX * MOVE_SPEED;
+        let moveY = inputY * MOVE_SPEED;
+
+        // 2. 黑洞引力
+        const gravityForce = calculateGravitationalForce(playerX, playerY, playerVx, playerVy, true);
+        moveX += gravityForce.x;
+        moveY += gravityForce.y;
+
+        // 3. AABB 玩家尺寸（宽高相等，保持方形）
+        const PLAYER_SIZE = ENTITY_SIZES.PLAYER * 1.2; // 约24px，方形碰撞箱
+        const halfSize = PLAYER_SIZE / 2;
+
+        // 4. 微步进移动（解决锯齿）
+        const STEPS = Math.max(1, Math.ceil(Math.abs(moveX) / 2), Math.ceil(Math.abs(moveY) / 2));
+        const stepX = moveX / STEPS;
+        const stepY = moveY / STEPS;
+
+        for (let step = 0; step < STEPS; step++) {
+          let newX = playerX + stepX;
+          let newY = playerY + stepY;
+
+          // 计算新位置的 AABB 边界
+          let newLeft = newX - halfSize;
+          let newRight = newX + halfSize;
+          let newTop = newY - halfSize;
+          let newBottom = newY + halfSize;
+
+          let collideX = false;
+          let collideY = false;
+          let slideX = newX;
+          let slideY = newY;
+
+          // 5. 墙壁碰撞检测（分离轴：先检测X，再检测Y）
+          for (let wall of walls) {
+            // 获取墙壁的 OBB 边界（旋转后的AABB需要用OBB检测）
+            // 为了简化且精准，沿用现有的 OBB 碰撞函数，但传入 AABB 玩家参数
+            // 将玩家视为未旋转的矩形（angle=0）进行检测
+
+            // 方法：将玩家矩形转换为4个点，与墙做OBB检测
+            const playerPoints = [
+              { x: newLeft, y: newTop },
+              { x: newRight, y: newTop },
+              { x: newRight, y: newBottom },
+              { x: newLeft, y: newBottom }
+            ];
+
+            // 快速AABB预检测（优化性能）
+            const wallLeft = wall.x - wall.width / 2;
+            const wallRight = wall.x + wall.width / 2;
+            const wallTop = wall.y - wall.height / 2;
+            const wallBottom = wall.y + wall.height / 2;
+
+            // 如果墙没有旋转，用AABB快速检测
+            if (!wall.angle || Math.abs(wall.angle) < 0.01) {
+              if (newRight > wallLeft && newLeft < wallRight &&
+                newBottom > wallTop && newTop < wallBottom) {
+                // 发生碰撞，计算推离
+                const overlapLeft = newRight - wallLeft;
+                const overlapRight = wallRight - newLeft;
+                const overlapTop = newBottom - wallTop;
+                const overlapBottom = wallBottom - newTop;
+
+                const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+                if (minOverlap === overlapLeft || minOverlap === overlapRight) {
+                  collideX = true;
+                  if (minOverlap === overlapLeft) slideX = wallLeft - halfSize;
+                  else slideX = wallRight + halfSize;
+                }
+                if (minOverlap === overlapTop || minOverlap === overlapBottom) {
+                  collideY = true;
+                  if (minOverlap === overlapTop) slideY = wallTop - halfSize;
+                  else slideY = wallBottom + halfSize;
+                }
+              }
+            } else {
+              // 墙有旋转，使用OBB检测
+              if (checkOBBCollision(newX, newY, PLAYER_SIZE, PLAYER_SIZE, 0,
+                wall.x, wall.y, wall.width, wall.height, wall.angle)) {
+                collideX = true;
+                collideY = true;
+              }
+            }
+          }
+
+          // 6. 应用移动（优先尝试滑动）
+          if (!collideX) playerX = newX;
+          if (!collideY) playerY = newY;
+
+          // 如果两个方向都碰撞，尝试推离
+          if (collideX && collideY) {
+            let canMoveX = true, canMoveY = true;
+
+            // 尝试只移动X
+            let testX = slideX;
+            let testLeft = testX - halfSize;
+            let testRight = testX + halfSize;
+            for (let wall of walls) {
+              const wallLeft = wall.x - wall.width / 2;
+              const wallRight = wall.x + wall.width / 2;
+              const wallTop = wall.y - wall.height / 2;
+              const wallBottom = wall.y + wall.height / 2;
+              if (testRight > wallLeft && testLeft < wallRight &&
+                playerY + halfSize > wallTop && playerY - halfSize < wallBottom) {
+                canMoveX = false;
+                break;
+              }
+            }
+            if (canMoveX) playerX = testX;
+
+            // 尝试只移动Y
+            let testY = slideY;
+            let testTop = testY - halfSize;
+            let testBottom = testY + halfSize;
+            for (let wall of walls) {
+              const wallLeft = wall.x - wall.width / 2;
+              const wallRight = wall.x + wall.width / 2;
+              const wallTop = wall.y - wall.height / 2;
+              const wallBottom = wall.y + wall.height / 2;
+              if (playerX + halfSize > wallLeft && playerX - halfSize < wallRight &&
+                testBottom > wallTop && testTop < wallBottom) {
+                canMoveY = false;
+                break;
+              }
+            }
+            if (canMoveY) playerY = testY;
+          }
+        }
+
+        // 7. 边界限制
+        const bound = PLAYER_SIZE / 2;
+        playerX = Math.max(bound, Math.min(worldWidth - bound, playerX));
+        playerY = Math.max(bound, Math.min(worldHeight - bound, playerY));
+
+        // 8. 更新镜头和UI
+        updateCamera();
+        coordinatesElement.textContent = `X ${Math.floor(playerX)}, Y ${Math.floor(playerY)}`;
+      }
+
+    function hasLineOfSight(fromX, fromY, toX, toY) {
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const distSq = dx * dx + dy * dy;
+      if (distSq > 1000 * 1000) return false; // 平方比较：超过1000距离不可见
+      if (distSq < 1) return true;
+
+      // 【无 sqrt 极速步数算法】
+      // 取横纵坐标差的绝对值中的较大者，作为射线步数
+      // 这能完美保证每一步的移动量不超过1，绝对不会漏检，也不需要开方！
+      const steps = Math.max(Math.abs(dx), Math.abs(dy)) / 10;
+      if (steps < 1) return true; // 距离太近，直接可见
+
+      const stepX = dx / steps;
+      const stepY = dy / steps;
+
+      let rayX = fromX + stepX;
+      let rayY = fromY + stepY;
+
+      for (let s = 1; s < steps; s++) {
+        // 检测墙壁遮挡
+        for (const wall of walls) {
+          if (checkPointInRect(rayX, rayY, wall.x - wall.width / 2, wall.y - wall.height / 2, wall.width, wall.height)) {
+            return false;
+          }
+        }
+        // 检测实体遮挡
+        for (const e of entities) {
+          if (e[E_TYPE] === ENTITY_TYPE.WALL || e[E_TYPE] === ENTITY_TYPE.PLAYER) continue;
+          const eSize = e[E_SIZE] || 20;
+          const edX = rayX - e[E_X];
+          const edY = rayY - e[E_Y];
+          if (edX * edX + edY * edY < eSize * eSize) {
+            return false;
+          }
+        }
+        rayX += stepX;
+        rayY += stepY;
+      }
+      return true;
+    }
+
+    function updateWanderBehavior(monster) {
+      monster[E_WANDER_TIMER]++;
+      if (monster[E_WANDER_TIMER] >= monster[E_WANDER_INTERVAL]) {
+        monster[E_WANDER_ANGLE] += (Math.random() - 0.5) * Math.PI / 2;
+        monster[E_WANDER_TIMER] = 0;
+      }
+    }
+
+    function performSelfThrow(monster) {
+      if (monster[E_IS_THROWING] || monster[E_TYPE] === ENTITY_TYPE.NUMBER) return;
+      monster[E_IS_THROWING] = true;
+      const angle = Math.atan2(playerY - monster[E_Y], playerX - monster[E_X]);
+      const throwPower = 12;
+      monster[E_VX] = Math.cos(angle) * throwPower;
+      monster[E_VY] = Math.sin(angle) * throwPower;
+      monster[E_ANGLE] = angle * (180 / Math.PI);
+    }
+
+    function combineMonsters(mA, mB, idxA, idxB) {
+      if (idxA > idxB) { entities.splice(idxA, 1); entities.splice(idxB, 1); }
+      else { entities.splice(idxB, 1); entities.splice(idxA, 1); }
+      if (Math.random() < 0.2 && (mA[E_CAN_WALL] || mB[E_CAN_WALL])) { createWall(mA, mB); }
+      else {
+        let newWord = mA[E_WORD] + mB[E_WORD]; recordWord(newWord);
+
+        // 正确继承父母的能力
+        const inheritedCanThrow = mA[E_CAN_THROW] || mB[E_CAN_THROW];
+        const inheritedCanComb = mA[E_CAN_COMB] || mB[E_CAN_COMB];
+        const inheritedCanWall = mA[E_CAN_WALL] || mB[E_CAN_WALL];
+        const inheritedCanAtk = mA[E_CAN_ATK] || mB[E_CAN_ATK];
+
+        entities.push([
+          Date.now() + Math.random(), newWord, (mA[E_X] + mB[E_X]) / 2, (mA[E_Y] + mB[E_Y]) / 2,
+          0, 1, Math.min(mA[E_SPEED], mB[E_SPEED]) * 0.8, 20, ENTITY_TYPE.NORMAL, (mA[E_ANGLE] + mB[E_ANGLE]) / 2,
+          BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 60,
+          inheritedCanThrow,    // 继承
+          inheritedCanComb,     // 继承
+          inheritedCanWall,     // 继承
+          inheritedCanAtk,      // 继承
+          false, false, null, 300, false, 0, 0,
+          0, 0, 0, 0, 0, null,
+          0
+        ]);
+      }
+      score += 30; updateScore();
+    }
+
+    function updateEntities() {
+      for (let i = entities.length - 1; i >= 0; i--) {
+        const e = entities[i];
+        if (!e) { entities.splice(i, 1); continue; }
+
+        // ======================================================
+        // 1. AI 行为计算 + 推力 (只计算一次！)
+        // ======================================================
+        if (e[E_TYPE] === ENTITY_TYPE.NORMAL || e[E_TYPE] === ENTITY_TYPE.WRITER) {
+          if (e[E_TYPE] === ENTITY_TYPE.WRITER) updateWriterMovement(e);
+          else if (!e[E_IS_THROWING]) {
+            let aiThrustX = 0, aiThrustY = 0;
+            updateMonsterAI(e);
+            if (e[E_BEHAVIOR] === BEHAVIOR.WANDER) {
+              updateWanderBehavior(e);
+              const p = e[E_SPEED] * 0.15;
+              aiThrustX = Math.cos(e[E_WANDER_ANGLE]) * p;
+              aiThrustY = Math.sin(e[E_WANDER_ANGLE]) * p;
+            } else if (e[E_BEHAVIOR] === BEHAVIOR.HUNT && e[E_TARGET]) {
+              const angle = Math.atan2(e[E_TARGET].y - e[E_Y], e[E_TARGET].x - e[E_X]);
+              const p = e[E_SPEED] * 0.25;
+              aiThrustX = Math.cos(angle) * p;
+              aiThrustY = Math.sin(angle) * p;
+            }
+            e[E_VX] += aiThrustX; e[E_VY] += aiThrustY;
+          }
+        } else if (e[E_TYPE] === ENTITY_TYPE.NUMBER) {
+          updateNumberAI(e);
+        }
+
+        // ======================================================
+        // 2. 引力计算 (黑洞强行施压)
+        // ======================================================
+        // (引力已在主循环中统一计算)
+
+        // ======================================================
+        // 3. 通用物理：摩擦力
+        // ======================================================
+        const friction = (e[E_TYPE] === ENTITY_TYPE.BULLET || e[E_TYPE] === ENTITY_TYPE.PROJECTILE) ? 1.0 : 0.95;
+        e[E_VX] *= friction; e[E_VY] *= friction;
+
+        // ======================================================
+        // 4. 通用物理：防抖旋转
+        // ======================================================
+        const moveSpeed = Math.sqrt(e[E_VX] * e[E_VX] + e[E_VY] * e[E_VY]);
+        if (moveSpeed > 0.5) {
+          const targetAngle = Math.atan2(e[E_VY], e[E_VX]) * (180 / Math.PI) + 90;
+          if (e[E_ANGLE] == null) e[E_ANGLE] = 0;
+          let angleDiff = targetAngle - e[E_ANGLE];
+          while (angleDiff > 180) angleDiff -= 360; while (angleDiff < -180) angleDiff += 360;
+          e[E_ANGLE] += angleDiff * (Math.abs(angleDiff) > 90 ? 0.3 : 0.1);
+        }
+
+        // ======================================================
+        // 5. 通用物理：移动与边界碰撞
+        // ======================================================
+        let newX = e[E_X] + e[E_VX]; let newY = e[E_Y] + e[E_VY];
+
+        // 【核心修复】子弹和抛射物不参与通用边界反弹！由自身专属逻辑处理消失
+        if (e[E_TYPE] !== ENTITY_TYPE.BULLET && e[E_TYPE] !== ENTITY_TYPE.PROJECTILE) {
+          if (newX < e[E_SIZE] || newX > worldWidth - e[E_SIZE]) { e[E_VX] *= -0.5; if (e[E_IS_THROWING]) e[E_IS_THROWING] = false; }
+          if (newY < e[E_SIZE] || newY > worldHeight - e[E_SIZE]) { e[E_VY] *= -0.5; if (e[E_IS_THROWING]) e[E_IS_THROWING] = false; }
+          newX = Math.max(e[E_SIZE], Math.min(worldWidth - e[E_SIZE], newX));
+          newY = Math.max(e[E_SIZE], Math.min(worldHeight - e[E_SIZE], newY));
+        }
+
+        // ======================================================
+        // 6. 通用物理：墙壁碰撞
+        // ======================================================
+        let wallCollision = false;
+        for (let wall of walls) {
+          if (checkOBBCollision(e[E_X], e[E_Y], e[E_SIZE] * 2, e[E_SIZE] * 2, e[E_ANGLE] || 0,
+            wall.x, wall.y, wall.width, wall.height, wall.angle || 0)) {
+            wallCollision = true;
+            if (e[E_IS_THROWING]) e[E_IS_THROWING] = false;
+            break;
+          }
+        }
+        if (wallCollision) { e[E_VX] *= -0.5; e[E_VY] *= -0.5; }
+        else { e[E_X] = newX; e[E_Y] = newY; }
+
+        // ======================================================
+        // 7. 特殊类型交互逻辑
+        // ======================================================
+        // 投掷物无敌时间倒计时
+        if (e[E_TYPE] === ENTITY_TYPE.BULLET || e[E_TYPE] === ENTITY_TYPE.PROJECTILE) {
+          if (e[E_INVULN_TIME] > 0) e[E_INVULN_TIME]--;
+        }
+
+        // 碎片逻辑
+        if (e[E_TYPE] === ENTITY_TYPE.SHARD) {
+          if (e[E_INVULN_TIME] > 0) e[E_INVULN_TIME]--;
+          e[E_LIFETIME]--;
+          if (e[E_LIFETIME] <= 0) { entities.splice(i, 1); continue; }
+          // 碎片打怪
+          if (e[E_INVULN_TIME] <= 0) {
+            for (let j = 0; j < entities.length; j++) {
+              const m = entities[j];
+              if (m[E_TYPE] === ENTITY_TYPE.NORMAL && getDistance(e, m) < (m[E_SIZE] + e[E_SIZE]) * (m[E_SIZE] + e[E_SIZE])) {
+                hitMonster(j, { damage: 0.5 }); entities.splice(i, 1); break;
+              }
+            }
+            continue;
+          }
+        }
+
+        // 子弹逻辑 (最终整合版：不碎裂、不反弹、直接消失)
+        // 子弹逻辑
+        // 子弹逻辑
+        if (e[E_TYPE] === ENTITY_TYPE.BULLET) {
+          // 1. 撞墙：扣除子弹字符数量的墙字符，子弹消失
+          // 在子弹逻辑的 1. 撞墙 部分
+          let hitWall = false;
+          for (let wall of walls) {
+            // 子弹用自身的 angle 和 尺寸
+            if (checkOBBCollision(e[E_X], e[E_Y], e[E_SIZE] * 2, e[E_SIZE] * 2, e[E_ANGLE],
+              wall.x, wall.y, wall.width, wall.height, wall.angle || 0)) {
+              const damageCount = (e[E_WORD] || "").length;
+              for (let d = 0; d < damageCount; d++) reduceWallCharacter(wall);
+              entities.splice(i, 1); hitWall = true; break;
+            }
+          }
+          if (hitWall) continue;
+
+          // 2. 飞出地图边界：直接消失
+          if (e[E_X] <= 0 || e[E_X] >= worldWidth || e[E_Y] <= 0 || e[E_Y] >= worldHeight) {
+            entities.splice(i, 1); continue;
+          }
+
+          // 3. 打中玩家：无敌时间过后，扣血并直接消失
+          const playerDistSq = getDistance(e, { x: playerX, y: playerY });
+          if (e[E_INVULN_TIME] <= 0 && playerDistSq < (30 + 25) * (30 + 25)) {
+            takeDamage(e[E_DAMAGE] || e[E_WORD].length || 1);
+            entities.splice(i, 1);
+            continue;
+          }
+
+          // 4. 打中怪物：怪物正常碎裂/分裂，子弹直接消失
+          let hitTarget = false;
+          for (let j = entities.length - 1; j >= 0; j--) {
+            const m = entities[j];
+            if (m[E_TYPE] !== ENTITY_TYPE.NORMAL && m[E_TYPE] !== ENTITY_TYPE.WRITER && m[E_TYPE] !== ENTITY_TYPE.NUMBER) continue;
+            if (e[E_INVULN_TIME] > 0) continue;
+            if (checkCollision(e, m)) {
+              hitMonster(j, e);
+              entities.splice(i, 1);
+              hitTarget = true;
+              break;
+            }
+          }
+          if (hitTarget) continue;
+        }
+
+        // 抛射物逻辑
+        if (e[E_TYPE] === ENTITY_TYPE.PROJECTILE) {
+          // 打玩家
+          if (e[E_INVULN_TIME] <= 0 && getDistance(e, { x: playerX, y: playerY }) < (20 + e[E_SIZE]) * (20 + e[E_SIZE])) {
+            takeDamage(e[E_DAMAGE] || 1); entities.splice(i, 1); continue;
+          }
+          // 撞墙
+          let projHit = false;
+          for (let wall of walls) { if (checkPointInRect(e[E_X], e[E_Y], wall.x - wall.width / 2, wall.y - wall.height / 2, wall.width, wall.height)) { entities.splice(i, 1); projHit = true; break; } }
+          if (projHit) continue;
+          // 撞怪
+          for (let j = 0; j < entities.length; j++) {
+            const m = entities[j];
+            if (m[E_TYPE] !== ENTITY_TYPE.NORMAL && m[E_TYPE] !== ENTITY_TYPE.WRITER) continue;
+            if (e[E_INVULN_TIME] > 0) continue;
+            if (getDistance(e, m) < (m[E_SIZE] + e[E_SIZE]) * (m[E_SIZE] + e[E_SIZE])) { entities.splice(i, 1); break; }
+          }
+          continue;
+        }
+
+        // 合并逻辑
+        if (e[E_TYPE] === ENTITY_TYPE.NORMAL && e[E_CAN_COMB] && !e[E_IS_COMBINING]) {
+          for (let j = i - 1; j >= 0; j--) {
+            const other = entities[j];
+            if (!other || other[E_TYPE] !== ENTITY_TYPE.NORMAL || !other[E_CAN_COMB] || other[E_IS_COMBINING]) continue;
+            if (getDistance(e, other) < (e[E_SIZE] + other[E_SIZE]) * (e[E_SIZE] + other[E_SIZE])) {
+              if (e[E_CAN_COMB] && other[E_CAN_COMB]) {
+                e[E_IS_COMBINING] = true; other[E_IS_COMBINING] = true;
+                combineMonsters(e, other, i, j); break;
+              }
+            }
+          }
+        }
+
+        // 数字逻辑
+        if (e[E_TYPE] === ENTITY_TYPE.NUMBER) { checkNumberCollision(e, i); }
+
+        // ======================================================
+        // 8. 实体与玩家的碰撞检测 (核心修复：距离平方修正)
+        // ======================================================
+        if (e[E_TYPE] === ENTITY_TYPE.NORMAL || e[E_TYPE] === ENTITY_TYPE.NUMBER || e[E_TYPE] === ENTITY_TYPE.WRITER) {
+          if (getDistance(e, { x: playerX, y: playerY }) < 30 * 30) {
+            let damage = (e[E_TYPE] === ENTITY_TYPE.NUMBER) ? (Math.abs(parseInt(e[E_WORD])) || 1) : (e[E_WORD].length * 4);
+            takeDamage(damage);
+            if (e[E_TYPE] === ENTITY_TYPE.WRITER) dropInventoryOnDeath(e[E_X], e[E_Y], e[E_INVENTORY] || []);
+            entities.splice(i, 1); continue;
+          }
+        }
+      }
+    }
+
+    function tearWallToScatteredWords(entity) {
+      // 【防崩溃修复】安全获取词汇文本，兼容数组和对象
+      let wordText = "";
+      if (entity instanceof Array) {
+        wordText = entity[E_WORD] || ""; // 数组实体
+      } else {
+        wordText = entity.word || "";     // 对象实体(墙)
+      }
+      if (!wordText) return; // 如果没有词汇，直接跳过不撕碎
+
+      let letters = [];
+      if (entity instanceof Array) {
+        letters = wordText.split("");
+      } else {
+        if (entity.lines && entity.lines.length > 0) {
+          entity.lines.forEach(line => letters = letters.concat(line.split("")));
+        } else {
+          letters = wordText.split("");
+        }
+      }
+
+      letters.forEach((letter, i) => {
+        // 安全获取坐标和速度
+        const ex = entity[E_X] !== undefined ? entity[E_X] : (entity.x || 0);
+        const ey = entity[E_Y] !== undefined ? entity[E_Y] : (entity.y || 0);
+        const evx = entity[E_VX] !== undefined ? entity[E_VX] : (entity.vx || 0);
+        const evy = entity[E_VY] !== undefined ? entity[E_VY] : (entity.vy || 0);
+        const eangle = entity[E_ANGLE] !== undefined ? entity[E_ANGLE] : (entity.angle || 0);
+        const espeed = entity[E_SPEED] !== undefined ? entity[E_SPEED] : (entity.speed || 0);
+
+        // 散落词：24位
+        entities.push([
+          Date.now() + Math.random() + i, letter,
+          ex, ey, evx, evy, espeed, 20, ENTITY_TYPE.SCATTER, eangle,
+          BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 999,
+          false, false, false, false, false, false, null, 300, false, 0, 0
+        ]);
+      });
+    }
+
+    function shatterBullet(n, t = false) {
+      const r = (n[E_WORD] || "").split("");
+      r.forEach(r => {
+        entities.push([Date.now() + Math.random(), r, n[E_X], n[E_Y], n[E_VX], n[E_VY], Math.sqrt(n[E_VX] * n[E_VX] + n[E_VY] * n[E_VY]), 8, ENTITY_TYPE.SHARD, n[E_ANGLE], BEHAVIOR.WANDER, 0, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0, 180, 0, 30, 0, 0, null]);
+      });
+    }
+
+    function shatterProjectile(projectile) {
+      const letters = (projectile[E_WORD] || "").split("");
+      letters.forEach((letter, i) => {
+        entities.push([Date.now() + Math.random(), letter, projectile[E_X], projectile[E_Y], projectile[E_VX], projectile[E_VY], Math.sqrt(projectile[E_VX] * projectile[E_VX] + projectile[E_VY] * projectile[E_VY]), 8, ENTITY_TYPE.SHARD, projectile[E_ANGLE], BEHAVIOR.WANDER, 0, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0, 180, 0, 30, 0, 0, null]);
+      });
+    }
+
+    function updateMonsterAI(monster) {
+      if (monster[E_IS_THROWING]) return;
+
+      // 初始化记忆字段
+      if (monster[E_LAST_SEEN_TIME] === undefined) monster[E_LAST_SEEN_TIME] = 0;
+      if (monster._lastSeenX === undefined) monster._lastSeenX = monster[E_X];
+      if (monster._lastSeenY === undefined) monster._lastSeenY = monster[E_Y];
+
+      // === 次高优先级：合并 ===
+      if (monster[E_CAN_COMB] && !monster[E_IS_COMBINING]) {
+        let closestMate = null;
+        let minMateDistSq = Infinity;
+        const combineRangeSq = 200 * 200;
+
+        for (let idx = 0; idx < entities.length; idx++) {
+          const other = entities[idx];
+          if (other === monster || !other[E_CAN_COMB] || other[E_IS_COMBINING]) continue;
+          const dSq = getDistance(monster, other);
+          if (dSq < combineRangeSq && dSq < minMateDistSq) {
+            minMateDistSq = dSq;
+            closestMate = other;
+          }
+        }
+
+        if (closestMate) {
+          monster[E_BEHAVIOR] = BEHAVIOR.HUNT;
+          monster[E_TARGET] = { x: closestMate[E_X], y: closestMate[E_Y] };
+          return;
+        }
+      }
+
+      // === 玩家追击逻辑 (ATK 怪物像数字一样死追玩家！) ===
+      if (monster[E_CAN_ATK]) {
+        monster[E_BEHAVIOR] = BEHAVIOR.HUNT;
+        monster[E_TARGET] = { x: playerX, y: playerY };
+      } else {
+        // 和平型怪物：永远不追玩家
+        if (monster[E_BEHAVIOR] !== BEHAVIOR.HUNT) {
+          monster[E_BEHAVIOR] = BEHAVIOR.WANDER;
+          monster[E_TARGET] = null;
+        }
+      }
+    }
+
+    function updateNumberAI(monster) {
+      // 1. 攻击型数字死追玩家
+      if (monster[E_CAN_ATK]) {
+        const angle = Math.atan2(playerY - monster[E_Y], playerX - monster[E_X]);
+        const thrust = monster[E_SPEED] * 0.4;
+        monster[E_VX] += Math.cos(angle) * thrust;
+        monster[E_VY] += Math.sin(angle) * thrust;
+        return;
+      }
+
+      // 2. 普通数字：猎杀 Writer
+      let target = null; let minDist = Infinity;
+
+      for (let idx = 0; idx < entities.length; idx++) {
+        const m = entities[idx];
+        if (m[E_TYPE] === ENTITY_TYPE.WRITER) { // 这里应该是 ENTITY_TYPE.WRITER
+          const dSq = getDistance(monster, m);
+          const viewSq = monster[E_VIEW_DIST] * monster[E_VIEW_DIST] * 1.44;
+          if (dSq < viewSq && dSq < minDist) {
+            minDist = dSq;
+            target = m;
+          }
+        }
+      }
+
+      if (target) {
+        const angle = Math.atan2(target[E_Y] - monster[E_Y], target[E_X] - monster[E_X]);
+        const thrust = monster[E_SPEED] * 0.3;
+        monster[E_VX] += Math.cos(angle) * thrust;
+        monster[E_VY] += Math.sin(angle) * thrust;
+      } else {
+        updateWanderBehavior(monster);
+        monster[E_VX] += Math.cos(monster[E_WANDER_ANGLE]) * monster[E_SPEED] * 0.1;
+        monster[E_VY] += Math.sin(monster[E_WANDER_ANGLE]) * monster[E_SPEED] * 0.1;
+      }
+    }
+
+
+    function updateWriterMovement(monster) {
+      if (!monster[E_INVENTORY]) monster[E_INVENTORY] = [];
+      if (!monster[E_SHOOT_COOLDOWN]) monster[E_SHOOT_COOLDOWN] = 0;
+
+      let evadeX = 0, evadeY = 0;
+      let closestThreat = null; // 确保 closestThreat 在这里初始化
+      let minThreatDist = Infinity;
+
+      // 1. 寻找威胁（数字怪）
+      for (let i = 0; i < entities.length; i++) {
+        const m = entities[i];
+        if (m[E_TYPE] === ENTITY_TYPE.NUMBER) {
+          const d = getDistance(monster, m);
+          if (d < 250) {
+            const angle = Math.atan2(monster[E_Y] - m[E_Y], monster[E_X] - m[E_X]);
+            evadeX += Math.cos(angle) * (250 - d);
+            evadeY += Math.sin(angle) * (250 - d);
+            if (d < minThreatDist) {
+              minThreatDist = d;
+              closestThreat = m;
+            }
+          }
+        }
+      }
+
+      // 2. 如果有威胁且有子弹，则射击 (加了 closestThreat 存在性检查，防止报错)
+      if (closestThreat && monster[E_INVENTORY].length > 0 && monster[E_SHOOT_COOLDOWN] <= 0) {
+        const word = monster[E_INVENTORY].shift();
+        const angle = Math.atan2(closestThreat[E_Y] - monster[E_Y], closestThreat[E_X] - monster[E_X]);
+        entities.push([Date.now() + Math.random(), word, monster[E_X] + Math.cos(angle) * 25, monster[E_Y] + Math.sin(angle) * 25, Math.cos(angle) * 8, Math.sin(angle) * 8, 8, ENTITY_SIZES.MONSTER, ENTITY_TYPE.BULLET, angle * (180 / Math.PI), BEHAVIOR.WANDER, 0, 0, 999, false, false, false, false, false, false, null, 300, false, 0, 0, 0, 0, INVULN_FRAMES, word.length, 0]);
+        monster[E_SHOOT_COOLDOWN] = 30;
+      }
+
+
+      if (monster[E_SHOOT_COOLDOWN] > 0) monster[E_SHOOT_COOLDOWN]--;
+
+      // 3. 逃跑行为
+      if (evadeX !== 0 || evadeY !== 0) {
+        const mag = Math.sqrt(evadeX * evadeX + evadeY * evadeY);
+        monster[E_VX] += (evadeX / mag) * monster[E_SPEED] * 0.8;
+        monster[E_VY] += (evadeY / mag) * monster[E_SPEED] * 0.8;
+        monster[E_WORD] = "W:" + monster[E_INVENTORY].length + "!";
+      } else {
+        // 4. 没有威胁时的捡词行为
+        monster[E_WORD] = "W:" + monster[E_INVENTORY].length;
+        let target = null; let minDist = Infinity;
+        for (let i = 0; i < entities.length; i++) {
+          const w = entities[i]; if (w === monster) continue;
+          if (w[E_TYPE] === ENTITY_TYPE.SCATTER || w[E_TYPE] === ENTITY_TYPE.NORMAL) {
+            const d = getDistance(monster, w); if (d < minDist) { minDist = d; target = w; }
+          }
+        }
+        if (target) {
+          const angle = Math.atan2(target[E_Y] - monster[E_Y], target[E_X] - monster[E_X]);
+          monster[E_VX] += Math.cos(angle) * monster[E_SPEED] * 0.2;
+          monster[E_VY] += Math.sin(angle) * monster[E_SPEED] * 0.2;
+          if (minDist < 30) { // 捡起范围
+            monster[E_INVENTORY].push(target[E_WORD]);
+            entities.splice(entities.indexOf(target), 1);
+          }
+        } else {
+          updateWanderBehavior(monster);
+          monster[E_VX] += Math.cos(monster[E_WANDER_ANGLE]) * monster[E_SPEED] * 0.1;
+          monster[E_VY] += Math.sin(monster[E_WANDER_ANGLE]) * monster[E_SPEED] * 0.1;
+        }
+      }
+    }
+
+    function updateProjectiles() {
+      projectiles.forEach((n, t) => {
+        const i = calculateGravitationalForce(n.x, n.y, n.vx, n.vy, false);
+        n.vx += i.x; n.vy += i.y; n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > worldWidth || n.y < 0 || n.y > worldHeight) { projectiles.splice(t, 1); return; }
+        const projSpeed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+        if (projSpeed > 0.5) {
+          const targetAngle = Math.atan2(n.vy, n.vx) * (180 / Math.PI) + 90;
+          if (n.angle == null) n.angle = 0;
+          let angleDiff = targetAngle - n.angle;
+          while (angleDiff > 180) angleDiff -= 360; while (angleDiff < -180) angleDiff += 360;
+          n.angle += angleDiff * (Math.abs(angleDiff) > 90 ? 0.3 : 0.1);
+        }
+        if (getDistance(n, { x: playerX, y: playerY }) < 20 + n.size) { takeDamage(n.damage); shatterProjectile(n); projectiles.splice(t, 1); return; }
+        for (let i of walls) if (checkPointInRect(n.x, n.y, i.x - i.width / 2, i.y - i.height / 2, i.width, i.height)) { shatterProjectile(n); projectiles.splice(t, 1); return; }
+        for (let i = 0; i < entity.length; i++) {
+          const r = entity[i];
+          if (r.id !== n.owner && getDistance(n, r) < r.size + n.size) { shatterProjectile(n); projectiles.splice(t, 1); return; }
+        }
+        for (let i = 0; i < projectiles.length; i++) {
+          const r = projectiles[i];
+          if (r !== n && getDistance(n, r) < n.size + r.size) { shatterProjectile(n); shatterProjectile(r); projectiles.splice(t, 1); projectiles.splice(i > t ? i - 1 : i, 1); return; }
+        }
+      })
+    }
+
+    function updateBulletShards() {
+      bulletShards.forEach((n, t) => {
+        n.invulnerableTime > 0 && n.invulnerableTime--;
+        const i = calculateGravitationalForce(n.x, n.y);
+        n.vx += i.x; n.vy += i.y; n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > worldWidth || n.y < 0 || n.y > worldHeight) { bulletShards.splice(t, 1); return; }
+        const shardSpeed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+        if (shardSpeed > 0.5) {
+          const targetAngle = Math.atan2(n.vy, n.vx) * (180 / Math.PI) + 90;
+          if (n.angle == null) n.angle = 0;
+          let angleDiff = targetAngle - n.angle;
+          while (angleDiff > 180) angleDiff -= 360; while (angleDiff < -180) angleDiff += 360;
+          n.angle += angleDiff * (Math.abs(angleDiff) > 90 ? 0.3 : 0.1);
+        }
+        // 删除了子弹碎片碰墙反弹的逻辑
+        if (n.invulnerableTime <= 0) for (let i = 0; i < entity.length; i++) { const r = entity[i]; if (getDistance(n, r) < r.size + n.size) { hitMonster(i, { damage: .5 }); bulletShards.splice(t, 1); return; } }
+        n.lifetime--; n.lifetime <= 0 && bulletShards.splice(t, 1)
+      })
+    }
+
+    function updateBullets() {
+      bullets.forEach((n, t) => {
+        const i = calculateGravitationalForce(n.x, n.y);
+        n.vx += i.x; n.vy += i.y; n.x += n.vx; n.y += n.vy;
+        if (n.type === "red" && (n.lifetime--, n.lifetime <= 0)) { bullets.splice(t, 1); return; }
+        const bulletSpeed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+        if (bulletSpeed > 0.5) {
+          const targetAngle = Math.atan2(n.vy, n.vx) * (180 / Math.PI) + 90;
+          if (n.angle == null) n.angle = 0;
+          let angleDiff = targetAngle - n.angle;
+          while (angleDiff > 180) angleDiff -= 360; while (angleDiff < -180) angleDiff += 360;
+          n.angle += angleDiff * (Math.abs(angleDiff) > 90 ? 0.3 : 0.1);
+        }
+        // 删除了普通子弹出界反弹的逻辑，保留出界销毁
+        let r = !1; if ((n.x <= 0 || n.x >= worldWidth || n.y <= 0 || n.y >= worldHeight) && (r = !0), r && n.type === "normal") { shatterBullet(n, !0); bullets.splice(t, 1); return; }
+        for (let i of walls) if (checkPointInRect(n.x, n.y, i.x - i.width / 2, i.y - i.height / 2, i.width, i.height)) { n.type === "normal" && shatterBullet(n, !1); reduceWallCharacter(i); bullets.splice(t, 1); return; }
+
+
+        entity.forEach((i, r) => {
+
+          if (n.owner && n.owner === i.id) return;
+
+          if (checkCollision(n, i)) {
+            hitMonster(r, n);
+            bullets.splice(t, 1);
+          }
+        })
+
+      })
+    }
+
+
+    function pushWall(n, t) {
+      const i = n.x - t.x, r = n.y - t.y, u = Math.sqrt(i * i + r * r);
+      if (u > 0) { const f = i / u * t.pushForce, e = r / u * t.pushForce; n.x += f; n.y += e; n.x = Math.max(n.width / 2, Math.min(worldWidth - n.width / 2, n.x)); n.y = Math.max(n.height / 2, Math.min(worldHeight - n.height / 2, n.y)); t.x -= f * .5; t.y -= e * .5 }
+    }
+
+    function checkNumberCollision(numE, numIdx) {
+      for (let i = entities.length - 1; i >= 0; i--) {
+        const otherE = entities[i]; if (i === numIdx) continue;
+
+        // 碰撞距离检测
+        if (getDistance(numE, otherE) < (numE[E_SIZE] + otherE[E_SIZE]) * (numE[E_SIZE] + otherE[E_SIZE])) {
+
+          // === 数字 vs 数字 ===
+          if (otherE[E_TYPE] === ENTITY_TYPE.NUMBER) {
+            addNumbers(numE, otherE, numIdx, i);
+            return;
+          }
+
+          // === 数字 vs 作家 (收割！) ===
+          else if (otherE[E_TYPE] === ENTITY_TYPE.WRITER) {
+            // 爆出 Writer 身上的所有词汇
+            dropInventoryOnDeath(otherE[E_X], otherE[E_Y], otherE[E_INVENTORY] || []);
+            // 删除 Writer
+            entities.splice(i, 1);
+            // 如果 Writer 在数字前面，修正数字的索引
+            if (i < numIdx) numIdx--;
+            // 数字继续存活，弹开一点距离继续寻找下一个猎物
+            numE[E_VX] += (Math.random() - 0.5) * 4;
+            numE[E_VY] += (Math.random() - 0.5) * 4;
+            score += 50; updateScore();
+            return;
+          }
+
+          // === 数字 vs 普通怪/散落词 ===
+          else {
+            handleNumberWordCollision(numE, otherE, numIdx, i);
+            return;
+          }
+        }
+      }
+    }
+
+    function addNumbers(n, t, idxA, idxB) {
+      const f = parseInt(n[E_WORD]) + parseInt(t[E_WORD]);
+      entities.splice(Math.max(idxA, idxB), 1); entities.splice(Math.min(idxA, idxB), 1);
+
+      // 继承父母的攻击性：父母任意一方会攻击，新数字就会攻击
+      const inheritedCanAtk = n[E_CAN_ATK] || t[E_CAN_ATK];
+      // 继承父母的合并性：父母任意一方会合并，新数字就会合并
+      const inheritedCanComb = n[E_CAN_COMB] || t[E_CAN_COMB];
+
+      entities.push([
+        Date.now() + Math.random(), f.toString(), (n[E_X] + t[E_X]) / 2, (n[E_Y] + t[E_Y]) / 2,
+        (Math.random() - .5) * 2, (Math.random() - .5) * 2, (n[E_SPEED] + t[E_SPEED]) / 2 * gameSpeed, 20, ENTITY_TYPE.NUMBER, 0,
+        BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 60,
+        false,                // CAN_THROW (数字不会扔)
+        inheritedCanComb,     // CAN_COMB (继承父母)
+        false,                // CAN_WALL (数字不会变墙)
+        inheritedCanAtk,      // CAN_ATK (继承父母，不再无脑true)
+        false, false, null, 800,
+        false, 0, 3,
+        0, 0, 0, 0, 0, null,
+        0
+      ]);
+      score += f === 0 ? 20 : f > 0 ? 15 : 25; updateScore();
+    }
+
+    function handleNumberWordCollision(numE, wordE, numIdx, wordIdx) {
+      const u = parseInt(numE[E_WORD]);
+      if (u === 0) {
+        splitWord(wordE);
+        entities.splice(numIdx, 1); score += 15;
+      }
+      else if (u > 0) {
+        for (let k = 0; k < u; k++) copyWord(wordE);
+        entities.splice(numIdx, 1); score += u * 5;
+      }
+      else {
+        entities.splice(Math.max(numIdx, wordIdx), 1);
+        entities.splice(Math.min(numIdx, wordIdx), 1);
+        score += Math.abs(u) * 10;
+      }
+      updateScore();
+    }
+
+
+
+    function handleWallCollisionSimple(n) { n.pathfindingAttempts++; const i = [{ vx: 0, vy: 1 }, { vx: 1, vy: 0 }, { vx: -1, vy: 0 }, { vx: 0, vy: -1 }, { vx: .7, vy: .7 }, { vx: -.7, vy: .7 }], t = i[Math.floor(Math.random() * i.length)]; let r = n.x + t.vx * n.speed * 2, u = n.y + t.vy * n.speed * 2, f = !0; for (let t of walls) if (checkRectCollision({ x: r - n.size, y: u - n.size, width: n.size * 2, height: n.size * 2 }, { x: t.x - t.width / 2, y: t.y - t.height / 2, width: t.width, height: t.height })) { f = !1; break } f ? (n.x = r, n.y = u, n.vx = t.vx * n.speed, n.vy = t.vy * n.speed) : Math.abs(n.vx) > Math.abs(n.vy) ? (n.vy = n.speed, n.vx = 0) : (n.vx = n.speed * (Math.random() > .5 ? 1 : -1), n.vy = 0) }
+    function forceMoveentityimple(n) { const t = Math.random() * Math.PI * 2, i = n.speed * 3; n.x += Math.cos(t) * i; n.y += Math.sin(t) * i; n.x = Math.max(n.size, Math.min(worldWidth - n.size, n.x)); n.y = Math.max(n.size, Math.min(worldHeight - n.size, n.y)); n.vx = 0; n.vy = n.speed }
+
+    function combineentity(monsterA, monsterB, indexA, indexB) {
+      if (indexA > indexB) { entity.splice(indexA, 1); entity.splice(indexB, 1); }
+      else { entity.splice(indexB, 1); entity.splice(indexA, 1); }
+      if (Math.random() < 0.2 && (monsterA.canToWall || monsterB.canToWall)) { createWall(monsterA, monsterB); }
+      else {
+        let newWord = monsterA.word + monsterB.word; recordWord(newWord);
+        const newMonster = { id: Date.now() + Math.random(), word: newWord, x: (monsterA.x + monsterB.x) / 2, y: (monsterA.y + monsterB.y) / 2, vx: 0, vy: 1, speed: Math.min(monsterA.speed, monsterB.speed) * 0.8, isCombining: false, combinationTimer: null, combinationTarget: null, size: 20, target: null, type: ENTITY_TYPE.NORMAL, spawnTime: Date.now(), canCombine: false, behavior: BEHAVIOR.WANDER, lastDirectionChange: 0, stuckTimer: 0, pathfindingAttempts: 0, lastX: 0, lastY: 0, stuckCounter: 0, isAvoiding: false, avoidDirection: null, avoidTimer: 0, lastPathfindTime: 0, pathfindCooldown: 400, pushForce: 0, viewDistance: 300, hasSeenPlayer: false, lastSeenPlayerTime: 0, wanderAngle: Math.random() * Math.PI * 2, wanderTimer: 0, wanderChangeInterval: 60, isSelfThrowing: false, canThrow: monsterA.canThrow || monsterB.canThrow, canCombination: monsterA.canCombination || monsterB.canCombination, canToWall: monsterA.canToWall || monsterB.canToWall, angle: (monsterA.angle + monsterB.angle) / 2, carrying: null };
+        newMonster.lastX = newMonster.x; newMonster.lastY = newMonster.y; entity.push(newMonster);
+        setTimeout(() => newMonster.canCombine = true, 500);
+      }
+      score += 30; updateScore();
+    }
+
+    let liveTopWordsElement = null;
+    let isTopWordsDirty = false; // 脏标记：记录是否有新词汇需要渲染
+
+    function recordWord(n) {
+      const t = allWords.findIndex(t => t.text === n);
+      t !== -1 ? allWords[t].count++ : allWords.push({ text: n, length: n.length, count: 1 });
+      saveGameData();
+      if (isPaused) updatePauseTopWords();
+
+      // 【新增】标记需要更新实时面板
+      isTopWordsDirty = true;
+    }
+
+    function createWall(n, t) {
+      const i = n[E_WORD] + t[E_WORD];
+      const s = (n[E_X] + t[E_X]) / 2;
+      const h = (n[E_Y] + t[E_Y]) / 2;
+      recordWord(i);
+      const c = 15, r = Math.floor(300 / c), u = i.split("");
+      let f, e;
+      if (u.length > r) { const n = []; for (let t = 0; t < u.length; t += r) n.push(u.slice(t, t + r).join("")); f = Math.max(...n.map(n => n.length)) * c + 20; e = n.length * 25 + 20 }
+      else f = u.length * c + 16, e = 36;
+      if (s - f / 2 < 0 || s + f / 2 > worldWidth || h - e / 2 < 0 || h + e / 2 > worldHeight) { createMonsterInsteadOfWall(n, t); return; }
+      const a = { id: Date.now() + Math.random(), word: i, x: s, y: h, width: f, height: e, lines: u.length > r ? wrapText(i, r) : [i], type: ENTITY_TYPE.WALL, angle: (n[E_ANGLE] + t[E_ANGLE]) / 2 };
+      walls.push(a);
+      const l = entities.indexOf(n), o = entities.indexOf(t);
+      if (l > -1) entities.splice(l, 1);
+      if (o > -1) entities.splice(o > l ? o - 1 : o, 1);
+      score += 30; updateScore();
+    }
+
+    function createMonsterInsteadOfWall(n, t) {
+      let i = n[E_WORD] + t[E_WORD]; recordWord(i);
+      const f = entities.indexOf(n), u = entities.indexOf(t);
+      if (f > -1 && entities.splice(f, 1), u > -1 && entities.splice(u > f ? u - 1 : u, 1), !i || i === "null") { score += 50; updateScore(); return; }
+
+      const inheritedCanThrow = n[E_CAN_THROW] || t[E_CAN_THROW];
+      const inheritedCanComb = n[E_CAN_COMB] || t[E_CAN_COMB];
+      const inheritedCanWall = n[E_CAN_WALL] || t[E_CAN_WALL];
+      const inheritedCanAtk = n[E_CAN_ATK] || t[E_CAN_ATK];
+
+      entities.push([
+        Date.now() + Math.random(), i, (n[E_X] + t[E_X]) / 2, (n[E_Y] + t[E_Y]) / 2,
+        0, 1, Math.min(n[E_SPEED], t[E_SPEED]) * .8, i.length > 1 ? 20 : 15, ENTITY_TYPE.NORMAL, (n[E_ANGLE] + t[E_ANGLE]) / 2,
+        BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 60,
+        inheritedCanThrow,    // 继承
+        inheritedCanComb,     // 继承
+        inheritedCanWall,     // 继承
+        inheritedCanAtk,      // 继承
+        false,                             // IS_THROWING
+        false,                             // IS_COMBINING
+        null,                              // TARGET
+        300,                               // VIEW_DIST
+        false,                             // SEEN_PLAYER
+        0,                                 // LAST_SEEN_TIME
+        0,                                 // PUSH_FORCE
+        0,                                 // LIFETIME
+        0,                                 // BOUNCE_COUNT
+        0,                                 // INVULN_TIME
+        0,                                 // DAMAGE
+        0,                                 // OWNER
+        null,                              // INVENTORY
+        0                                  // SHOOT_COOLDOWN
+      ]);
+    }
+
+    function reduceWallCharacter(n) {
+      let t = [];
+      if (n.lines && n.lines.length > 0 ? n.lines.forEach(n => t = t.concat(n.split(""))) : t = n.word.split(""), t.length > 0)
+        if (t.pop(), t.length === 0) { const t = walls.indexOf(n); walls.splice(t, 1); score += 100; updateScore() }
+        else {
+          const i = 15, r = Math.floor(300 / i);
+          if (t.length > r) { const i = []; for (let n = 0; n < t.length; n += r) i.push(t.slice(n, n + r).join("")); n.lines = i; n.word = i.join("") }
+          else n.word = t.join(""), n.lines = [n.word];
+          n.lines && n.lines.length > 1 ? (n.width = Math.max(...n.lines.map(n => n.length)) * i + 20, n.height = n.lines.length * 25 + 20) : (n.width = t.length * i + 20, n.height = 40);
+          score += 10; updateScore()
+        }
+    }
+
+    function createInheritingShard(original, letter, index) {
+      entities.push([Date.now() + Math.random() + index, letter, original[E_X] + (index - original[E_WORD].length / 2) * 20, original[E_Y], original[E_VX] * 0.8, original[E_VY] * 0.8, original[E_SPEED] * 0.8, original[E_SIZE], original[E_TYPE], original[E_ANGLE] + (index - original[E_WORD].length / 2) * 15, BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 60, original[E_CAN_THROW], original[E_CAN_COMB], original[E_CAN_WALL], original[E_CAN_ATK], false, false, null, original[E_VIEW_DIST], false, 0, original[E_PUSH_FORCE], 0, 0, 0, 0, 0, null]);
+    }
+
+    // 基于 SAT 分离轴定理的 OBB 碰撞检测（中心点坐标系）
+      // 基于 SAT 分离轴定理的 OBB 碰撞检测（中心点坐标系）- 修复版
+        function checkOBBCollision(cx1, cy1, w1, h1, angle1, cx2, cy2, w2, h2, angle2) {
+          const rad1 = angle1 * Math.PI / 180;
+          const rad2 = angle2 * Math.PI / 180;
+
+          // 获取两个矩形的四个顶点（中心点坐标系转世界坐标）
+          const cos1 = Math.cos(rad1), sin1 = Math.sin(rad1);
+          const cos2 = Math.cos(rad2), sin2 = Math.sin(rad2);
+
+          const halfW1 = w1 / 2, halfH1 = h1 / 2;
+          const halfW2 = w2 / 2, halfH2 = h2 / 2;
+
+          // 矩形1的四个顶点（局部坐标 -> 世界坐标）
+          const corners1 = [
+            { x: cx1 + (-halfW1) * cos1 - (-halfH1) * sin1, y: cy1 + (-halfW1) * sin1 + (-halfH1) * cos1 },
+            { x: cx1 + (halfW1) * cos1 - (-halfH1) * sin1, y: cy1 + (halfW1) * sin1 + (-halfH1) * cos1 },
+            { x: cx1 + (halfW1) * cos1 - (halfH1) * sin1, y: cy1 + (halfW1) * sin1 + (halfH1) * cos1 },
+            { x: cx1 + (-halfW1) * cos1 - (halfH1) * sin1, y: cy1 + (-halfW1) * sin1 + (halfH1) * cos1 }
+          ];
+
+          // 矩形2的四个顶点
+          const corners2 = [
+            { x: cx2 + (-halfW2) * cos2 - (-halfH2) * sin2, y: cy2 + (-halfW2) * sin2 + (-halfH2) * cos2 },
+            { x: cx2 + (halfW2) * cos2 - (-halfH2) * sin2, y: cy2 + (halfW2) * sin2 + (-halfH2) * cos2 },
+            { x: cx2 + (halfW2) * cos2 - (halfH2) * sin2, y: cy2 + (halfW2) * sin2 + (halfH2) * cos2 },
+            { x: cx2 + (-halfW2) * cos2 - (halfH2) * sin2, y: cy2 + (-halfW2) * sin2 + (halfH2) * cos2 }
+          ];
+
+          // 需要检测的轴：两个矩形的四个边的法线（共4个轴）
+          const axes = [
+            { x: cos1, y: sin1 },                           // 矩形1的X轴方向
+            { x: -sin1, y: cos1 },                          // 矩形1的Y轴方向
+            { x: cos2, y: sin2 },                           // 矩形2的X轴方向
+            { x: -sin2, y: cos2 }                           // 矩形2的Y轴方向
+          ];
+
+          // 投影函数
+          function project(corners, axis) {
+            let min = Infinity, max = -Infinity;
+            for (const c of corners) {
+              const proj = c.x * axis.x + c.y * axis.y;
+              min = Math.min(min, proj);
+              max = Math.max(max, proj);
+            }
+            return { min, max };
+          }
+
+          // 检查所有轴是否有分离
+          for (const axis of axes) {
+            const proj1 = project(corners1, axis);
+            const proj2 = project(corners2, axis);
+            if (proj1.max < proj2.min || proj2.max < proj1.min) {
+              return false; // 存在分离轴，不相交
+            }
+          }
+
+          return true; // 所有轴都重叠，发生碰撞
+        }
+
+    function checkPointInRect(n, t, i, r, u, f) { return n >= i && n <= i + u && t >= r && t <= r + f }
+    function checkCollision(n, t) {
+      const nx = n[E_X] !== undefined ? n[E_X] : n.x;
+      const ny = n[E_Y] !== undefined ? n[E_Y] : n.y;
+      const tx = t[E_X] !== undefined ? t[E_X] : t.x;
+      const ty = t[E_Y] !== undefined ? t[E_Y] : t.y;
+      const tSize = t[E_SIZE] !== undefined ? t[E_SIZE] : t.size;
+      const nType = n[E_TYPE] !== undefined ? n[E_TYPE] : (n.type || 0);
+
+      // 【核心修复】使用距离平方比较，和游戏其他地方保持一致！
+      const dx = nx - tx, dy = ny - ty;
+      const distSq = dx * dx + dy * dy;
+
+      // 子弹/抛射物判定半径加大 (30)，普通实体判定半径 (5)
+      const collisionBonus = (nType === ENTITY_TYPE.BULLET || nType === ENTITY_TYPE.PROJECTILE) ? 30 : 5;
+      const collisionRadius = tSize + collisionBonus;
+
+      return distSq < collisionRadius * collisionRadius; // 使用平方比较，不再开根号
+    }
+
+    function collectScatteredWord() {
+      if (inventory.length >= maxInventorySize || isDead) return;
+      for (let i = entities.length - 1; i >= 0; i--) {
+        const e = entities[i];
+        // 修复：先判断类型，再判断距离 (用平方比较提速)
+        if (e[E_TYPE] === ENTITY_TYPE.SCATTER) {
+          const dx = playerX - e[E_X], dy = playerY - e[E_Y];
+          if (dx * dx + dy * dy < 50 * 50) {
+            inventory.push(e[E_WORD]);
+            entities.splice(i, 1);
+            score += 5;
+            updateScore();
+            break;
+          }
+        }
+      }
+    }
+
+    function createInheritingShard(original, letter, index) {
+      entities.push([
+        Date.now() + Math.random() + index, letter,
+        original[E_X] + (index - original[E_WORD].length / 2) * 20, original[E_Y],
+        original[E_VX] * 0.8, original[E_VY] * 0.8, original[E_SPEED] * 0.8, ENTITY_SIZES.SHARD,
+        original[E_TYPE], original[E_ANGLE] + (index - original[E_WORD].length / 2) * 15,
+        BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 999,
+        original[E_CAN_THROW], original[E_CAN_COMB], original[E_CAN_WALL], original[E_CAN_ATK],
+        false, false, null, original[E_VIEW_DIST], false, 0, original[E_PUSH_FORCE],
+        0, 0, 0, 0, 0, null
+      ]);
+    }
+
+    function splitWord(monster) {
+        const idx = entities.indexOf(monster);
+        if (idx > -1) entities.splice(idx, 1); // 先移除原怪物
+
+        // 如果只剩1个字符，直接死亡消失，什么都不生成
+        if (monster[E_WORD].length <= 1) return;
+
+        const letters = monster[E_WORD].split("");
+        const count = letters.length;
+
+        // 将角度转换为弧度
+        const rad = (monster[E_ANGLE] || 0) * Math.PI / 180;
+
+        // 计算朝向的 X 和 Y 分量
+        const dirX = Math.cos(rad);
+        const dirY = -Math.sin(rad);
+
+        // 每个字符之间的间距（基于原始字符尺寸）
+        const charWidth = monster[E_SIZE] * 0.8; // 每个字符的宽度
+        const spacing = charWidth; // 字符间距等于字符宽度（紧贴排列）
+
+        letters.forEach((letter, i) => {
+          // 【核心修复】计算该字符在原始字符串中的位置偏移
+          // 假设字符串的中心是怪物的中心点
+          // 当前字符相对于字符串中心的位置
+          const offset = (i - (count - 1) / 2) * spacing;
+
+          const spawnX = monster[E_X] + dirX * offset;
+          const spawnY = monster[E_Y] + dirY * offset;
+
+          // 速度继承原怪物速度，不加额外偏移（无扰动）
+          const baseVx = monster[E_VX];
+          const baseVy = monster[E_VY];
+
+          entities.push([
+            Date.now() + Math.random() + i, letter,
+            spawnX,
+            spawnY,
+            baseVx,
+            baseVy,
+            monster[E_SPEED] * 1.1,
+            20, ENTITY_TYPE.NORMAL,
+            monster[E_ANGLE], // 保持原角度，不随机旋转
+            BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 60,
+            monster[E_CAN_THROW], monster[E_CAN_COMB], monster[E_CAN_WALL], monster[E_CAN_ATK],
+            false, false, null, 300, false, 0, 0,
+            0, 0, 0, 0, 0, null,
+            0
+          ]);
+        });
+      }
+
+    function copyWord(monster) {
+      const copy = monster.slice(); // 数组浅拷贝
+      copy[E_ID] = Date.now() + Math.random();
+      copy[E_X] = monster[E_X] + (Math.random() - 0.5) * 50;
+      copy[E_Y] = monster[E_Y] + (Math.random() - 0.5) * 50;
+      copy[E_VX] = (Math.random() - 0.5) * 2;
+      copy[E_VY] = (Math.random() - 0.5) * 2;
+      copy[E_IS_THROWING] = false;
+      copy[E_ANGLE] = Math.random() * 360;
+      entities.push(copy);
+    }
+
+    function hitMonster(index, bullet) {
+        const m = entities[index]; if (!m) return;
+        if (m[E_TYPE] === ENTITY_TYPE.NUMBER) { entities.splice(index, 1); score += 25; updateScore(); return; }
+        if (m[E_TYPE] === ENTITY_TYPE.WRITER) { dropInventoryOnDeath(m[E_X], m[E_Y], m[E_INVENTORY] || []); entities.splice(index, 1); score += 50; updateScore(); return; }
+        if (m[E_TYPE] === ENTITY_TYPE.NORMAL) {
+          splitWord(m); // splitWord 内部已经将原怪物 splice 删除了
+          score += 20;
+          updateScore();
+        }
+      }
+
+
+
+
+    function showDeathScreen() {
+      document.getElementById("deathScore").textContent = score;
+      const deathScreen = document.getElementById("deathScreen");
+      deathScreen.style.display = "flex";
+      setTimeout(() => deathScreen.classList.add('visible'), 9);
+    }
+
+    function hideDeathScreen() {
+      const deathScreen = document.getElementById("deathScreen");
+      deathScreen.classList.remove('visible');
+      setTimeout(() => deathScreen.style.display = "none", 300);
+    }
+
+
+    function takeDamage(n) {
+      health -= n;
+      health = Math.max(0, health);
+      updateHealth();
+
+      if (health <= 0) {
+        dropInventoryOnDeath(playerX, playerY, inventory);
+        inventory = [];
+        deathCount++;
+        updateDeathCount();
+        isDead = true; // 【修改】只标记玩家死亡，不阻断游戏主循环
+        if (skipGameover) respawnPlayer(); else showDeathScreen();
+      }
+    }
+
+
+    function respawnPlayer() {
+      isDead = false; // 【新增】解除死亡状态
+      isSpacePressed = false; // 【新增】防止复活瞬间开枪
+      keys = { w: false, a: false, s: false, d: false }; // 【新增】防止复活瞬间移动
+
+      inventory = [];
+      playerX = Math.random() * (worldWidth - 100) + 50;
+      playerY = Math.random() * (worldHeight - 100) + 50;
+      playerAngle = 0;
+      health = maxHealth;
+      updateHealth();
+      playerVx = 0;
+      playerVy = 0;
+      updateCamera();
+      hideDeathScreen();
+    }
+
+
+    function updateDeathCount() { deathCountElement.textContent = `DEATHS ${deathCount}`; if (pauseDeathCountElement) pauseDeathCountElement.textContent = deathCount; }
+    function updateScore() { scoreElement.textContent = `SCORE ${score}` }
+    function updateHealth() { healthElement.textContent = `HEALTH ${health}` }
+    function gameOver() { isDead = !0; clearInterval(entitypawnInterval); hideDeathScreen(); }
+
+    function displayBestWords() {
+      bestWordsListElement.innerHTML = ""; allWordsListElement.innerHTML = ""; wordCountElement.textContent = `Total Words ${allWords.length}`;
+      if (allWords.length === 0) { bestWordsListElement.innerHTML = '<div class="noWords">No words created yet</div>'; allWordsListElement.innerHTML = '<div class="noWords">No words created yet</div>'; return; }
+      const sortedWords = [...allWords].sort((a, b) => a.length !== b.length ? b.length - a.length : b.count - a.count);
+      const top10Words = sortedWords.slice(0, 10);
+      top10Words.forEach((word, index) => {
+        const entryDiv = document.createElement("div"); entryDiv.className = "wordEntry";
+        const rankSpan = document.createElement("span"); rankSpan.className = "wordRank"; rankSpan.textContent = `TOP ${index + 1}`;
+        const textSpan = document.createElement("span"); textSpan.className = "wordText"; textSpan.textContent = word.text;
+        const lengthSpan = document.createElement("span"); lengthSpan.className = "wordLength"; lengthSpan.textContent = `${word.length} chars`;
+        entryDiv.appendChild(rankSpan); entryDiv.appendChild(textSpan); entryDiv.appendChild(lengthSpan); bestWordsListElement.appendChild(entryDiv);
+      });
+      sortedWords.forEach((word, index) => {
+        const entryDiv = document.createElement("div"); entryDiv.className = "wordEntry";
+        const rankSpan = document.createElement("span"); rankSpan.className = "wordRank"; rankSpan.textContent = `#${index + 1}`;
+        const textSpan = document.createElement("span"); textSpan.className = "wordText"; textSpan.textContent = word.text;
+        const countSpan = document.createElement("span"); countSpan.className = "wordLength"; countSpan.textContent = `Count: ${word.count}`;
+        entryDiv.appendChild(rankSpan); entryDiv.appendChild(textSpan); entryDiv.appendChild(countSpan); allWordsListElement.appendChild(entryDiv);
+      });
+    }
+
+    function restart() { clearInterval(entitypawnInterval); entity = []; bullets = []; walls = []; projectiles = []; bulletShards = []; scatteredWords = []; inventory = []; deathCount = 0; updateDeathCount(); gameOverScreen.style.display = "none"; init() }
+
+    function getDistance(a, b) {
+      let ax, ay, bx, by;
+
+      // 1. 读取 A 的坐标
+      if (Array.isArray(a)) {
+        // 实体数组：长度 >= 24，且 E_X(2) 是数字
+        if (a.length >= 24 && typeof a[E_X] === 'number') {
+          ax = a[E_X]; ay = a[E_Y];
+        }
+        // 黑洞数组：长度在 8~15 之间，且 BH_X(0) 是数字
+        else if (a.length >= 8 && a.length <= 15 && typeof a[BH_X] === 'number') {
+          ax = a[BH_X]; ay = a[BH_Y];
+        }
+        // 其他未知数组
+        else {
+          ax = 0; ay = 0;
+        }
+      } else {
+        ax = a.x || 0; ay = a.y || 0; // 普通对象 {x, y}
+      }
+
+      // 2. 读取 B 的坐标 (逻辑完全一样)
+      if (Array.isArray(b)) {
+        if (b.length >= 24 && typeof b[E_X] === 'number') {
+          bx = b[E_X]; by = b[E_Y];
+        } else if (b.length >= 8 && b.length <= 15 && typeof b[BH_X] === 'number') {
+          bx = b[BH_X]; by = b[BH_Y];
+        } else {
+          bx = 0; by = 0;
+        }
+      } else {
+        bx = b.x || 0; by = b.y || 0;
+      }
+
+      const dx = ax - bx, dy = ay - by;
+      return dx * dx + dy * dy;
+    }
+
+    function checkBlackHoleInteractions() {
+      for (let i = 0; i < blackHoles.length; i++) {
+        const bh = blackHoles[i];
+        if (getDistance(bh, { x: playerX, y: playerY }) < bh[BH_ABS] * bh[BH_ABS]) {
+          if (skipGameover) respawnPlayer(); else showDeathScreen();
+          bh[BH_MASS]++; bh[BH_ABS] = 100 + bh[BH_MASS] * 10; return;
+        }
+      }
+
+      for (let i = entities.length - 1; i >= 0; i--) {
+        const e = entities[i]; if (!e) { entities.splice(i, 1); continue; }
+        let destroyed = false;
+
+        for (let j = 0; j < blackHoles.length; j++) {
+          const bh = blackHoles[j];
+          const distSq = getDistance(bh, e);
+          if (distSq < bh[BH_ABS] * bh[BH_ABS]) {
+            if (e[E_TYPE] === ENTITY_TYPE.WRITER) dropInventoryOnDeath(e[E_X], e[E_Y], e[E_INVENTORY] || []);
+            entities.splice(i, 1); bh[BH_MASS]++; bh[BH_ABS] = 100 + bh[BH_MASS] * 10; destroyed = true; break;
+          }
+          const rocheLimit = 500 + Math.pow(bh[BH_MASS], 1 / 3) * 80;
+          if (distSq < rocheLimit * rocheLimit) { // 阈值平方
+            if (e[E_TYPE] === ENTITY_TYPE.NORMAL || e[E_TYPE] === ENTITY_TYPE.SCATTER) { tearWallToScatteredWords(e); entities.splice(i, 1); }
+            else if (e[E_TYPE] === ENTITY_TYPE.BULLET) { shatterBullet(e, false); entities.splice(i, 1); }
+            else if (e[E_TYPE] === ENTITY_TYPE.PROJECTILE) { shatterProjectile(e); entities.splice(i, 1); }
+            else if (e[E_TYPE] === ENTITY_TYPE.WRITER || e[E_TYPE] === ENTITY_TYPE.NUMBER) {
+              if (e[E_TYPE] === ENTITY_TYPE.WRITER) dropInventoryOnDeath(e[E_X], e[E_Y], e[E_INVENTORY] || []);
+              entities.splice(i, 1);
+            }
+            bh[BH_MASS]++; bh[BH_ABS] = 100 + bh[BH_MASS] * 10; destroyed = true; break;
+          }
+        }
+        if (destroyed) continue;
+      }
+
+      for (let i = walls.length - 1; i >= 0; i--) {
+        const wall = walls[i]; if (!wall) { walls.splice(i, 1); continue; }
+        for (let j = 0; j < blackHoles.length; j++) {
+          const bh = blackHoles[j]; const distSq = getDistance(bh, wall);
+          if (distSq < bh[BH_ABS] * bh[BH_ABS]) { walls.splice(i, 1); bh[BH_MASS]++; bh[BH_ABS] = 100 + bh[BH_MASS] * 10; break; }
+          const rocheLimit = (500 + Math.pow(bh[BH_MASS], 1 / 3) * 80) * 1.5;
+          if (distSq < rocheLimit * rocheLimit) { tearWallToScatteredWords(wall); walls.splice(i, 1); bh[BH_MASS]++; bh[BH_ABS] = 100 + bh[BH_MASS] * 10; break; }
+        }
+      }
+    }
+
+    function updateBlackHoles() {
+      for (let i = 0; i < blackHoles.length; i++) {
+        const bh = blackHoles[i];
+        if (isNaN(bh[BH_X]) || isNaN(bh[BH_Y])) { bh[BH_X] = worldWidth / 2; bh[BH_Y] = worldHeight / 2; }
+
+        if (bh[BH_TT]++, bh[BH_TT] >= 300 && (selectBlackHoleTarget(bh), bh[BH_TT] = 0), bh[BH_TARGET]) {
+          const dx = bh[BH_TARGET].x - bh[BH_X], dy = bh[BH_TARGET].y - bh[BH_Y], dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0) {
+            const r = Math.min(0.5 / dist, 0.02), moveX = dx * r, moveY = dy * r;
+            bh[BH_X] += moveX; bh[BH_Y] += moveY;
+            bh[BH_X] = Math.max(bh[BH_ABS], Math.min(worldWidth - bh[BH_ABS], bh[BH_X]));
+            bh[BH_Y] = Math.max(bh[BH_ABS], Math.min(worldHeight - bh[BH_ABS], bh[BH_Y]));
+            if (Math.abs(moveX) > 0.1 || Math.abs(moveY) > 0.1) { let ad = Math.atan2(moveY, moveX) * 57.29577951308232 - bh[BH_ANGLE]; while (ad > 180) ad -= 360; while (ad < -180) ad += 360; bh[BH_ANGLE] += ad * 0.05; }
+          }
+        } else {
+          if (bh[BH_WT]++, bh[BH_WT] > 120 && (bh[BH_WA] += (Math.random() - .5) * 1.5707963267948966, bh[BH_WT] = 0), 1) {
+            const sp = 0.15; bh[BH_X] += Math.cos(bh[BH_WA]) * sp; bh[BH_Y] += Math.sin(bh[BH_WA]) * sp;
+            if (bh[BH_X] <= bh[BH_ABS] || bh[BH_X] >= worldWidth - bh[BH_ABS]) bh[BH_WA] = 3.141592653589793 - bh[BH_WA];
+            if (bh[BH_Y] <= bh[BH_ABS] || bh[BH_Y] >= worldHeight - bh[BH_ABS]) bh[BH_WA] = -bh[BH_WA];
+            bh[BH_X] = Math.max(bh[BH_ABS], Math.min(worldWidth - bh[BH_ABS], bh[BH_X]));
+            bh[BH_Y] = Math.max(bh[BH_ABS], Math.min(worldHeight - bh[BH_ABS], bh[BH_Y]));
+            let ad = bh[BH_WA] * 57.29577951308232 - bh[BH_ANGLE]; while (ad > 180) ad -= 360; while (ad < -180) ad += 360; bh[BH_ANGLE] += ad * 0.05;
+          }
+        }
+      }
+    }
+
+    function selectBlackHoleTarget(bh) {
+      const n = [];
+      for (let i = 0; i < entities.length; i++) {
+        n.push({ x: entities[i][E_X], y: entities[i][E_Y] }); // 必须用 [E_X]
+      }
+      for (let i = 0; i < walls.length; i++) {
+        n.push({ x: walls[i].x, y: walls[i].y });
+      }
+      if (n.length > 0) bh[BH_TARGET] = n[Math.floor(Math.random() * n.length)];
+      else bh[BH_TARGET] = null;
+    }
+
+
+
+    function tearWallToScatteredWords(wall) {
+      // 【终极防呆】不管传进来的是数组实体还是对象墙壁，绝不报错
+      let wordText = "";
+      if (wall instanceof Array) {
+        wordText = wall[E_WORD] || "";
+      } else {
+        wordText = wall.word || "";
+      }
+      if (!wordText) return; // 没词就不撕
+
+      let letters = wordText.split("");
+
+      letters.forEach((letter, i) => {
+        const ex = wall instanceof Array ? (wall[E_X] || 0) : (wall.x || 0);
+        const ey = wall instanceof Array ? (wall[E_Y] || 0) : (wall.y || 0);
+        const evx = wall instanceof Array ? (wall[E_VX] || 0) : (wall.vx || 0);
+        const evy = wall instanceof Array ? (wall[E_VY] || 0) : (wall.vy || 0);
+        const eangle = wall instanceof Array ? (wall[E_ANGLE] || 0) : (wall.angle || 0);
+        const espeed = wall instanceof Array ? (wall[E_SPEED] || 0) : (wall.speed || 0);
+
+        entities.push([
+          Date.now() + Math.random() + i, letter,
+          ex + (Math.random() - 0.5) * 30,
+          ey + (Math.random() - 0.5) * 30,
+          evx + (Math.random() - 0.5) * 2,
+          evy + (Math.random() - 0.5) * 2,
+          espeed, 20, ENTITY_TYPE.SCATTER, eangle,
+          BEHAVIOR.WANDER, Math.random() * Math.PI * 2, 0, 999,
+          false, false, false, false, false, false, null, 300, false, 0, 0
+        ]);
+      });
+    }
+
+    function createInheritingShardWithPosition(originalMonster, letter, index, targetArray, x, y, vx, vy) {
+      const shard = {
+        id: Date.now() + Math.random() + index,
+        word: letter,
+        x: x,
+        y: y,
+        vx: vx,
+        vy: vy,
+        speed: originalMonster.speed * 0.8,
+        size: ENTITY_SIZES.SHARD,
+        target: null,
+        type: originalMonster.type,
+        spawnTime: Date.now(),
+        canCombine: false,
+        behavior: BEHAVIOR.WANDER,
+        lastDirectionChange: 0,
+        stuckTimer: 0,
+        pathfindingAttempts: 0,
+        lastX: 0,
+        lastY: 0,
+        stuckCounter: 0,
+        isAvoiding: false,
+        avoidDirection: null,
+        avoidTimer: 0,
+        lastPathfindTime: 0,
+        pathfindCooldown: 400,
+        pushForce: originalMonster.pushForce,
+        viewDistance: originalMonster.viewDistance,
+        hasSeenPlayer: false,
+        lastSeenPlayerTime: 0,
+        wanderAngle: Math.random() * Math.PI * 2,
+        wanderTimer: 0,
+        wanderChangeInterval: 60,
+        isSelfThrowing: false,
+        canThrow: originalMonster.canThrow,
+        canCombination: originalMonster.canCombination,
+        canToWall: originalMonster.canToWall,
+        canToAttackPlayer: originalMonster.canToAttackPlayer,
+        angle: Math.atan2(vy, vx) * (180 / Math.PI)
+      };
+
+      shard.lastX = shard.x;
+      shard.lastY = shard.y;
+      targetArray.push(shard);
+
+      setTimeout(() => {
+        shard.canCombine = true;
+      }, 500);
+    }
+
+    function drawRotatedText(ctx, text, x, y, size, color, angle) {
+      ctx.font = `${size}px Arial`;
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // 性能优化：微小角度(如漂浮晃动)直接画，不触发 canvas 状态机
+      if (!angle || Math.abs(angle) < 0.01) {
+        ctx.fillText(text, x, y);
+        return;
+      }
+
+      // 必须旋转的文字才使用状态机
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle * Math.PI / 180);
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    }
+
+    function drawWall(ctx, wall, cameraX, cameraY) {
+      ctx.save();
+      const x = wall.x - cameraX;
+      const y = wall.y - cameraY;
+      ctx.translate(x, y);
+
+      if (wall.angle) {
+        ctx.rotate(wall.angle * Math.PI / 180);
+      }
+
+      ctx.fillStyle = isLightMode ? "#333" : "#fff";
+      ctx.font = `${ENTITY_SIZES.WALL}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      if (wall.lines && wall.lines.length > 1) {
+        const lineHeight = 20;
+        const startY = -(wall.lines.length - 1) * lineHeight / 2;
+        wall.lines.forEach((line, index) => {
+          ctx.fillText(line, 0, startY + index * lineHeight);
+        });
+      } else {
+        ctx.fillText(wall.word, 0, 0);
+      }
+
+      ctx.restore();
+    }
+
+    function drawWallExternalEdges(ctx, wall, allWalls) {
+      ctx.strokeStyle = isLightMode ? "#333" : "#fff";
+      ctx.lineWidth = 2;
+
+      const left = -wall.width / 2;
+      const right = wall.width / 2;
+      const top = -wall.height / 2;
+      const bottom = wall.height / 2;
+
+      const edges = [
+        { start: { x: left, y: top }, end: { x: right, y: top }, visible: true },
+        { start: { x: right, y: top }, end: { x: right, y: bottom }, visible: true },
+        { start: { x: right, y: bottom }, end: { x: left, y: bottom }, visible: true },
+        { start: { x: left, y: bottom }, end: { x: left, y: top }, visible: true }
+      ];
+
+      allWalls.forEach(otherWall => {
+        if (otherWall.id === wall.id) return;
+
+        const otherLeft = otherWall.x - wall.x - otherWall.width / 2;
+        const otherRight = otherWall.x - wall.x + otherWall.width / 2;
+        const otherTop = otherWall.y - wall.y - otherWall.height / 2;
+        const otherBottom = otherWall.y - wall.y + otherWall.height / 2;
+
+        if (edges[0].visible &&
+          top >= otherTop && top <= otherBottom &&
+          !(right < otherLeft || left > otherRight)) {
+          if (left < otherLeft && right > otherLeft) {
+            edges[0].start = { x: left, y: top };
+            edges[0].end = { x: otherLeft, y: top };
+          } else if (left < otherRight && right > otherRight) {
+            edges[0].start = { x: otherRight, y: top };
+            edges[0].end = { x: right, y: top };
+          } else {
+            edges[0].visible = false;
+          }
+        }
+
+        if (edges[1].visible &&
+          right >= otherLeft && right <= otherRight &&
+          !(bottom < otherTop || top > otherBottom)) {
+          if (top < otherTop && bottom > otherTop) {
+            edges[1].start = { x: right, y: top };
+            edges[1].end = { x: right, y: otherTop };
+          } else if (top < otherBottom && bottom > otherBottom) {
+            edges[1].start = { x: right, y: otherBottom };
+            edges[1].end = { x: right, y: bottom };
+          } else {
+            edges[1].visible = false;
+          }
+        }
+
+        if (edges[2].visible &&
+          bottom >= otherTop && bottom <= otherBottom &&
+          !(right < otherLeft || left > otherRight)) {
+          if (left < otherLeft && right > otherLeft) {
+            edges[2].start = { x: left, y: bottom };
+            edges[2].end = { x: otherLeft, y: bottom };
+          } else if (left < otherRight && right > otherRight) {
+            edges[2].start = { x: otherRight, y: bottom };
+            edges[2].end = { x: right, y: bottom };
+          } else {
+            edges[2].visible = false;
+          }
+        }
+
+        if (edges[3].visible &&
+          left >= otherLeft && left <= otherRight &&
+          !(bottom < otherTop || top > otherBottom)) {
+          if (top < otherTop && bottom > otherTop) {
+            edges[3].start = { x: left, y: top };
+            edges[3].end = { x: left, y: otherTop };
+          } else if (top < otherBottom && bottom > otherBottom) {
+            edges[3].start = { x: left, y: otherBottom };
+            edges[3].end = { x: left, y: bottom };
+          } else {
+            edges[3].visible = false;
+          }
+        }
+      });
+
+      edges.forEach(edge => {
+        if (edge.visible) {
+          ctx.beginPath();
+          ctx.moveTo(edge.start.x, edge.start.y);
+          ctx.lineTo(edge.end.x, edge.end.y);
+          ctx.stroke();
+        }
+      });
+    }
+
+    function draw() {
+      ctx.fillStyle = isLightMode ? "rgba(234,234,234,0.8)" : "rgba(0,0,0,0.8)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      entitiesElement.textContent = `ENTITIES ${entities.length + walls.length}`;
+
+      walls.forEach(wall => {
+        if (isInView(wall.x, wall.y, wall.width, wall.height)) { drawWall(ctx, wall, cameraX, cameraY); }
+      });
+
+      entities.forEach(e => {
+        if (!isInView(e[E_X], e[E_Y], e[E_SIZE] * 2, e[E_SIZE] * 2)) return;
+        let color = isLightMode ? "#333" : "#fff";
+        let size = e[E_SIZE] || ENTITY_SIZES.MONSTER;
+
+        if (e[E_TYPE] === ENTITY_TYPE.NUMBER) {
+          const num = parseInt(e[E_WORD]);
+          color = num < 0 ? "#ff00ff" : num === 0 ? (isLightMode ? "#333" : "#ffffff") : "#00ff00";
+        } else if (e[E_TYPE] === ENTITY_TYPE.WRITER) {
+          color = isLightMode ? "#000" : "#fff";
+        } else if (e[E_TYPE] === ENTITY_TYPE.SCATTER) {
+          color = isLightMode ? "#666" : "#ffffff";
+          // 散落词直接使用 e[E_SIZE]，不再强制缩小
+        } else if (e[E_TYPE] === ENTITY_TYPE.BULLET) {
+          color = isLightMode ? "#333" : "#ffffff";
+        } else if (e[E_TYPE] === ENTITY_TYPE.PROJECTILE) {
+          color = e[E_TYPE] === ENTITY_TYPE.SHRAPNEL ? "#ff8800" : "#ffff00";
+        } else if (e[E_TYPE] === ENTITY_TYPE.SHARD) {
+          color = isLightMode ? "#888" : "#aaa";
+          if (e[E_INVULN_TIME] > 0) { const i = Math.floor(e[E_INVULN_TIME] / 5) % 2; color = i ? (isLightMode ? "#000" : "#ffffff") : (isLightMode ? "#555" : "#cccccc"); }
+          else if (e[E_BOUNCE_COUNT] === 1) color = isLightMode ? "#999" : "#ccc"; else if (e[E_BOUNCE_COUNT] === 2) color = isLightMode ? "#777" : "#888"; else if (e[E_BOUNCE_COUNT] >= 3) color = isLightMode ? "#555" : "#666";
+        }
+
+        drawRotatedText(ctx, e[E_WORD], e[E_X] - cameraX, e[E_Y] - cameraY, size, color, e[E_ANGLE] || 0);
+      });
+
+      drawRotatedText(ctx, "-", playerX - cameraX, playerY - cameraY, ENTITY_SIZES.PLAYER, isLightMode ? "#000" : "#fff", playerAngle || 0);
+      drawMinimap();
+    }
+
+    function drawMinimap() {
+      const n = minimapCtx, t = 200 / worldWidth, i = 150 / worldHeight;
+      n.fillStyle = isLightMode ? "#ddd" : "#000"; n.fillRect(0, 0, 200, 150);
+      n.strokeStyle = isLightMode ? "#333" : "#fff"; n.lineWidth = 1; n.strokeRect(0, 0, 200, 150);
+
+      n.fillStyle = isLightMode ? "#aaa" : "#666";
+      walls.forEach(r => {
+        const u = r.x * t, f = r.y * i, e = Math.max(1, r.width * t), o = Math.max(1, r.height * i);
+        if (u + e >= 0 && u <= 200 && f + o >= 0 && f <= 150) { n.fillRect(u - e / 2, f - o / 2, e, o); }
+      });
+
+      entities.forEach(r => {
+        const u = r[E_X] * t, f = r[E_Y] * i;
+        if (u >= 0 && u <= 200 && f >= 0 && f <= 150) {
+          if (r[E_TYPE] === ENTITY_TYPE.NUMBER) {
+            const num = parseInt(r[E_WORD]); n.fillStyle = num < 0 ? "#4244bf" : num === 0 ? (isLightMode ? "#333" : "#ffffff") : "#00ff00";
+          } else if (r[E_TYPE] === ENTITY_TYPE.WRITER) { n.fillStyle = "#fff"; }
+          else if (r[E_TYPE] === ENTITY_TYPE.SCATTER) { n.fillStyle = isLightMode ? "#888" : "#ffffff"; }
+          else if (r[E_TYPE] === ENTITY_TYPE.BULLET || r[E_TYPE] === ENTITY_TYPE.PROJECTILE) { n.fillStyle = "#ffff00"; }
+          else if (r[E_TYPE] === ENTITY_TYPE.SHARD) { n.fillStyle = isLightMode ? "#888" : "#aaa"; }
+          else { n.fillStyle = "#ff0000"; } // NORMAL
+          n.beginPath(); n.arc(u, f, Math.max(2, 8 * t), 0, Math.PI * 2); n.fill();
+        }
+      });
+
+      n.fillStyle = "#00ff00"; n.beginPath(); n.arc(playerX * t, playerY * i, Math.max(3, 10 * t), 0, Math.PI * 2); n.fill();
+      n.strokeStyle = "rgba(255, 255, 255, 0.3)"; n.strokeRect(cameraX * t, cameraY * i, viewWidth * t, viewHeight * i);
+    }
+
+
+    function updateLiveTopWords() {
+      if (!liveTopWordsElement) liveTopWordsElement = document.getElementById("liveTopWords");
+      if (!liveTopWordsElement) return;
+
+      let container = liveTopWordsElement.querySelector('.live-words-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'live-words-container';
+        liveTopWordsElement.appendChild(container);
+      }
+
+      container.innerHTML = "";
+
+      if (allWords.length === 0) {
+        return; // 没有词汇时完全不显示任何东西
+      }
+
+      const sortedWords = [...allWords].sort((a, b) => a.length !== b.length ? b.length - a.length : b.count - a.count);
+      const top10Words = sortedWords.slice(0, 10);
+
+      top10Words.forEach((word) => {
+        const entryDiv = document.createElement("div");
+        entryDiv.className = "liveWordEntry";
+        entryDiv.textContent = word.text; // 直接输出纯白色词汇文本
+        container.appendChild(entryDiv);
+      });
+    }
+    function gameLoop() {
+      frameCount++;
+      if (!isPaused) {
+
+        for (let i = 0; i < entities.length; i++) {
+          const e = entities[i];
+          if (!e) continue;
+          const gravityForce = calculateGravitationalForce(e[E_X], e[E_Y], e[E_VX], e[E_VY], false);
+          const gravityMultiplier = (e[E_TYPE] === ENTITY_TYPE.NORMAL || e[E_TYPE] === ENTITY_TYPE.WRITER || e[E_TYPE] === ENTITY_TYPE.NUMBER) ? 0.6 : 1.0;
+          e[E_VX] += gravityForce.x * gravityMultiplier;
+          e[E_VY] += gravityForce.y * gravityMultiplier;
+        }
+
+        checkBlackHoleInteractions();
+        updateEntities();
+        updateBlackHoles();
+
+        if (!isDead) {
+          updatePlayer();
+
+          // ==========================================
+          // 【修复】只保留一个正确的射击判定
+          // ==========================================
+          if (isSpacePressed) {
+            const currentTime = Date.now();
+            if (currentTime - lastShootTime >= shootCooldown) {
+              if (inventory.length > 0) shootFirstInventoryWord();
+              lastShootTime = currentTime;
+            }
+          }
+        }
+      }
+      draw();
+      if (isTopWordsDirty) { updateLiveTopWords(); isTopWordsDirty = false; }
+      requestAnimationFrame(() => gameLoop())
+    }
+
+    function loadSkipGameMenuSetting() {
+      const saved = localStorage.getItem("skipGameMenu");
+      if (saved !== null) {
+        skipGameover = saved === "true";
+        const toggle = document.getElementById("skipGameMenuToggle");
+        if (skipGameover) {
+          toggle.classList.add("active");
+        }
+      }
+    }
+
+    window.addEventListener("load", () => {
+      loadSkipGameMenuSetting();
+      init()
+    });
+  </script>
+</body>
+
+</html>

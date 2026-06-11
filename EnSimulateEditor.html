@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>En Simulate Editor (Optimized)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #0a0a0c; color: #e0e0e0; display: flex; height: 100vh; overflow: hidden;
+        }
+        
+        #sidebar {
+            width: 240px; background: linear-gradient(180deg, #12141a 0%, #0d0f14 100%);
+            border-right: 1px solid #1e2028; display: flex; flex-direction: column;
+            padding: 16px; gap: 12px; overflow-y: auto;
+        }
+        #sidebar::-webkit-scrollbar { width: 6px; }
+        #sidebar::-webkit-scrollbar-thumb { background: #2a2d35; border-radius: 3px; }
+        
+        h1 { 
+            font-size: 15px; font-weight: 600; color: #e8e8e8; 
+            padding: 8px 0; border-bottom: 1px solid #252830; margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }
+        .section { display: flex; flex-direction: column; gap: 6px; }
+        .section-title { font-size: 11px; color: #5a5f70; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
+        
+        button, .btn {
+            background: linear-gradient(135deg, #1e2128 0%, #16181e 100%);
+            color: #d0d0d0; border: 1px solid #2a2d35; padding: 9px 12px;
+            cursor: pointer; border-radius: 6px; font-size: 12px; transition: all 0.2s;
+            font-weight: 500;
+        }
+        button:hover { background: linear-gradient(135deg, #262a33 0%, #1a1d24 100%); border-color: #3a3f50; }
+        button.primary { background: linear-gradient(135deg, #1a5a9e 0%, #0d47a1 100%); border-color: #1976d2; color: #fff; }
+        button.primary:hover { background: linear-gradient(135deg, #1e6ab0 0%, #1565c0 100%); }
+        button.danger { background: linear-gradient(135deg, #3a1a1a 0%, #2a1212 100%); border-color: #4a2020; color: #ff6b6b; }
+        button.danger:hover { background: linear-gradient(135deg, #4a2020 0%, #3a1515 100%); }
+        
+        .draggable {
+            background: linear-gradient(135deg, #1a1d24 0%, #14161c 100%);
+            padding: 10px; cursor: grab; border-radius: 6px;
+            border: 1px solid #252830; font-size: 12px; text-align: center;
+            transition: all 0.2s; position: relative; overflow: hidden;
+        }
+        .draggable::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+            background: var(--accent, #3a3f50); transition: background 0.2s;
+        }
+        .draggable[data-type="player"] { --accent: #4caf50; }
+        .draggable[data-type="blackhole"] { --accent: #9c27b0; }
+        .draggable[data-type="monster"] { --accent: #f44336; }
+        .draggable[data-type="wall"] { --accent: #607d8b; }
+        .draggable:hover { background: linear-gradient(135deg, #22262f 0%, #1a1d24 100%); border-color: #3a4050; }
+        .draggable:active { cursor: grabbing; }
+        
+        .template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+        #canvas-container { 
+            flex: 1; position: relative; background: #050508; overflow: hidden;
+            background-image: radial-gradient(ellipse at center, #0a0c12 0%, #050508 100%);
+        }
+        canvas { display: block; }
+        
+        #props-panel {
+            width: 300px; background: linear-gradient(180deg, #12141a 0%, #0d0f14 100%);
+            border-left: 1px solid #1e2028; padding: 16px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .prop-group { 
+            border-bottom: 1px solid #1e2028; padding-bottom: 12px; 
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .prop-group h3 { font-size: 13px; color: #e0e0e0; margin-bottom: 10px; font-weight: 600; }
+        .row { margin-bottom: 8px; }
+        .row label { display: block; font-size: 11px; color: #6a7080; margin-bottom: 3px; }
+        .row input, .row select, .row textarea {
+            width: 100%; padding: 8px 10px; background: #0d0f14;
+            border: 1px solid #252830; color: #e0e0e0; border-radius: 4px; font-size: 12px;
+            transition: border-color 0.2s; font-family: inherit;
+        }
+        .row input:focus, .row textarea:focus { border-color: #3a8dde; outline: none; }
+        .row textarea { resize: vertical; min-height: 60px; }
+
+        .switch-row {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #0d0f14; border: 1px solid #252830; border-radius: 4px; padding: 8px 10px;
+            margin-bottom: 6px;
+        }
+        .switch-label { font-size: 11px; color: #8a90a0; }
+        .switch { position: relative; width: 36px; height: 20px; cursor: pointer; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #2a2d35; transition: .2s; border-radius: 10px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background-color: white; transition: .2s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #3a8dde; }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        .status {
+            position: absolute; bottom: 12px; left: 12px;
+            background: rgba(10, 12, 18, 0.9); backdrop-filter: blur(8px);
+            padding: 6px 12px; border-radius: 6px; font-size: 11px;
+            color: #6a7080; pointer-events: none; border: 1px solid #1e2028;
+        }
+        
+        .hint {
+            position: absolute; bottom: 12px; right: 12px;
+            background: rgba(10, 12, 18, 0.9); backdrop-filter: blur(8px);
+            padding: 6px 12px; border-radius: 6px; font-size: 11px;
+            color: #5a8dde; pointer-events: none; border: 1px solid #1a3050;
+        }
+        
+        input[type="file"] { display: none; }
+        
+        .entity-count { display: flex; gap: 8px; margin-top: 4px; }
+        .entity-count span {
+            flex: 1; background: #0d0f14; padding: 6px 8px; border-radius: 4px;
+            font-size: 11px; color: #6a7080; text-align: center; border: 1px solid #1e2028;
+        }
+        .entity-count span strong { color: #a0a8b8; display: block; font-size: 14px; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+    <aside id="sidebar">
+        <h1>地图编辑器</h1>
+        
+        <div class="section">
+            <div style="display:flex;gap:6px;">
+                <button id="undo-btn" style="flex:1">撤销</button>
+                <button id="redo-btn" style="flex:1">重做</button>
+            </div>
+            <button id="clear-btn" class="danger">清空全部</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">编辑操作</div>
+            <button id="copy-btn">复制 (Ctrl+C)</button>
+            <button id="paste-btn">粘贴 (Ctrl+V)</button>
+            <button id="del-btn" class="danger">删除选中</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">文件操作</div>
+            <label class="btn" for="file-input">导入存档</label>
+            <input type="file" id="file-input">
+            <button id="export-btn" class="primary">导出存档</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">实体 (拖拽放置)</div>
+            <div class="draggable" draggable="true" data-type="player">玩家</div>
+            <div class="draggable" draggable="true" data-type="blackhole">黑洞</div>
+            <div class="draggable" draggable="true" data-type="monster">普通怪物</div>
+            <div class="draggable" draggable="true" data-type="number">数字怪物</div>
+            <div class="draggable" draggable="true" data-type="writer">创作者</div>
+            <div class="draggable" draggable="true" data-type="wall">墙壁</div>
+            <div class="draggable" draggable="true" data-type="scattered">散落文字</div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">快速模板</div>
+            <div class="template-grid">
+                <button data-template="room">房间</button>
+                <button data-template="maze">迷宫</button>
+                <button data-template="fortress">要塞</button>
+                <button data-template="spiral">螺旋</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">统计</div>
+            <div class="entity-count">
+                <span>怪物<strong id="m-count">0</strong></span>
+                <span>墙壁<strong id="w-count">0</strong></span>
+                <span>文字<strong id="s-count">0</strong></span>
+            </div>
+        </div>
+    </aside>
+
+    <main id="canvas-container">
+        <canvas id="canvas"></canvas>
+        <div class="status" id="status">缩放: 100% | 位置: 0, 0</div>
+        <div class="hint">中键/右键拖动 | 滚轮缩放 | 拖拽角点调整墙壁</div>
+    </main>
+
+    <aside id="props-panel">
+        <div class="prop-group">
+            <h3>世界设置</h3>
+            <div class="row"><label>宽度</label><input type="number" id="w-w" value="20000"></div>
+            <div class="row"><label>高度</label><input type="number" id="w-h" value="20000"></div>
+            <div class="row"><label>生命值</label><input type="number" id="w-hp" value="20"></div>
+            <div class="row"><label>速度</label><input type="number" id="w-spd" value="7" step="0.1"></div>
+            <div class="row"><label>分数</label><input type="number" id="w-score" value="0"></div>
+            <div class="row"><label>死亡次数</label><input type="number" id="w-death" value="0"></div>
+        </div>
+
+        <div class="prop-group">
+            <h3>生成设置</h3>
+            <div class="row"><label>怪物生成数量 (-1为无限)</label><input type="number" id="s-count" value="-1"></div>
+            <div class="row"><label>最大生成间隔</label><input type="number" id="s-max" value="5000"></div>
+            <div class="row"><label>最小生成间隔</label><input type="number" id="s-min" value="2300"></div>
+            <div class="row"><label>玩家背包上限</label><input type="number" id="s-invsize" value="7"></div>
+        </div>
+
+        <div class="prop-group">
+            <h3>玩家背包</h3>
+            <div class="row">
+                <label>初始物品 (逗号分隔)</label>
+                <textarea id="p-inv" placeholder="例如: APPLE, CAT"></textarea>
+            </div>
+        </div>
+        
+        <div class="prop-group">
+            <h3>物体属性</h3>
+            <div id="props-content">
+                <div style="color:#4a4f5a; text-align:center; font-size:12px; margin-top:20px;">
+                    点击画布选择物体
+                </div>
+            </div>
+        </div>
+    </aside>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const SIZES = {
+            PLAYER_SIZE: 18, BH_RADIUS: 140, MONSTER_SIZE: 20, WORD_SIZE: 20,
+            WALL_HEIGHT: 40, HANDLE_OFFSET: 30, HANDLE_SIZE: 10,
+            WALL_CLICK_PADDING: 5, CLICK_PADDING: 10
+        };
+
+        const ENTITY_TYPE = {
+            NORMAL: 0, NUMBER: 1, SCATTER: 2, WALL: 3, PLAYER: 4,
+            BULLET: 5, PROJECTILE: 6, SHARD: 7, WRITER: 8
+        };
+
+        const BEHAVIOR = { WANDER: 0, HUNT: 1, EVADE: 2 };
+
+        let state = {
+            world: { w: 20000, h: 20000 },
+            player: { x: 10000, y: 10000, angle: 0, speed: 7, inventory: [] },
+            blackHoles: [[5000, 5000, 1, 0]],
+            meta: { score: 0, hp: 20, death: 0 },
+            spawns: { count: -1, max: 5000, min: 2300, invSize: 7 },
+            entities: { monsters: [], walls: [], words: [] }
+        };
+
+        let view = { x: 10000, y: 10000, scale: 1.0 };
+        let selected = null;
+        let clipboard = null;
+        let interaction = { mode: 'none' };
+        let history = [];
+        let historyIndex = -1;
+        let animTime = 0;
+
+        const getEntX = ent => ent.type === 'blackhole' ? ent[0] : ent.x;
+        const getEntY = ent => ent.type === 'blackhole' ? ent[1] : ent.y;
+        const getEntAngle = ent => ent.type === 'blackhole' ? ent[3] : (ent.angle || 0);
+
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            setupEvents();
+            view.x = state.player.x;
+            view.y = state.player.y;
+            saveHistory();
+            requestAnimationFrame(loop);
+        }
+
+        function resize() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+
+        function setupEvents() {
+            canvas.addEventListener('mousedown', mouseDown);
+            canvas.addEventListener('touchstart', mouseDown, { passive: false });
+            canvas.addEventListener('wheel', wheel, { passive: false });
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+            document.querySelectorAll('.draggable').forEach(el => {
+                el.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', el.dataset.type));
+            });
+            canvas.addEventListener('dragover', e => e.preventDefault());
+            canvas.addEventListener('drop', drop);
+
+            document.getElementById('undo-btn').onclick = undo;
+            document.getElementById('redo-btn').onclick = redo;
+            document.getElementById('export-btn').onclick = exportMap;
+            document.getElementById('clear-btn').onclick = clear;
+            document.getElementById('file-input').onchange = e => importMap(e.target.files[0]);
+
+            document.getElementById('copy-btn').onclick = copySelection;
+            document.getElementById('paste-btn').onclick = pasteClipboard;
+            document.getElementById('del-btn').onclick = deleteSelected;
+
+            document.querySelectorAll('.template-grid button').forEach(btn => {
+                btn.onclick = () => genTemplate(btn.dataset.template);
+            });
+
+            const worldInputs = ['w-w', 'w-h', 'w-hp', 'w-spd', 'w-score', 'w-death',
+                's-count', 's-max', 's-min', 's-invsize', 'p-inv'];
+            worldInputs.forEach(id => {
+                document.getElementById(id).oninput = e => {
+                    const v = id === 'p-inv' ? e.target.value : parseFloat(e.target.value);
+                    updateWorldState(id, v);
+                };
+            });
+
+            document.addEventListener('keydown', e => {
+                if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+                if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+                if (e.ctrlKey && e.key === 'c') { e.preventDefault(); copySelection(); }
+                if (e.ctrlKey && e.key === 'v') { e.preventDefault(); pasteClipboard(); }
+                if (e.key === 'Delete') { deleteSelected(); }
+            });
+        }
+
+        function copySelection() {
+            if (!selected) return;
+            clipboard = JSON.parse(JSON.stringify(selected));
+        }
+
+        function pasteClipboard() {
+            if (!clipboard) return;
+            let newEnt = JSON.parse(JSON.stringify(clipboard));
+            newEnt.id = Date.now();
+            if (newEnt.type === 'blackhole') {
+                newEnt[0] += 50; newEnt[1] += 50;
+                state.blackHoles.push(newEnt);
+                newEnt.arrayIndex = state.blackHoles.length - 1;
+            } else {
+                newEnt.x += 50; newEnt.y += 50;
+                if (newEnt.type === 'monster') state.entities.monsters.push(newEnt);
+                else if (newEnt.type === 'wall') state.entities.walls.push(newEnt);
+                else if (newEnt.type === 'word') state.entities.words.push(newEnt);
+            }
+            selected = newEnt;
+            updateProps();
+            saveHistory();
+        }
+
+        function updateWorldState(id, val) {
+            if (id === 'w-w') state.world.w = val;
+            if (id === 'w-h') state.world.h = val;
+            if (id === 'w-hp') state.meta.hp = val;
+            if (id === 'w-spd') state.player.speed = val;
+            if (id === 'w-score') state.meta.score = val;
+            if (id === 'w-death') state.meta.death = val;
+            if (id === 's-count') state.spawns.count = val;
+            if (id === 's-max') state.spawns.max = val;
+            if (id === 's-min') state.spawns.min = val;
+            if (id === 's-invsize') state.spawns.invSize = val;
+            if (id === 'p-inv') {
+                state.player.inventory = val.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            }
+        }
+
+        const toWorld = (sx, sy) => ({
+            x: view.x + (sx - canvas.width / 2) / view.scale,
+            y: view.y + (sy - canvas.height / 2) / view.scale
+        });
+
+        function getHit(x, y) {
+            if (selected) {
+                const dx = x - getEntX(selected);
+                const dy = y - getEntY(selected);
+                const rad = -getEntAngle(selected) * Math.PI / 180;
+                const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+                const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+                let handleDist = selected.type === 'wall'
+                    ? Math.max(selected.width, selected.height) / 2 + SIZES.HANDLE_OFFSET
+                    : (selected.type === 'player' ? SIZES.PLAYER_SIZE :
+                        selected.type === 'blackhole' ? SIZES.BH_RADIUS : SIZES.MONSTER_SIZE) + SIZES.HANDLE_OFFSET;
+
+                if (Math.hypot(localX, localY + handleDist) < SIZES.HANDLE_SIZE * 2) {
+                    return { ent: selected, action: 'rotate' };
+                }
+
+                if (selected.type === 'wall') {
+                    const corners = [
+                        { x: -selected.width / 2, y: -selected.height / 2, name: 'left-top' },
+                        { x: selected.width / 2, y: -selected.height / 2, name: 'right-top' },
+                        { x: selected.width / 2, y: selected.height / 2, name: 'right-bottom' },
+                        { x: -selected.width / 2, y: selected.height / 2, name: 'left-bottom' }
+                    ];
+                    for (const c of corners) {
+                        if (Math.hypot(localX - c.x, localY - c.y) < SIZES.HANDLE_SIZE * 2) {
+                            return { ent: selected, action: 'resize', corner: c.name };
+                        }
+                    }
+                }
+            }
+
+            for (const w of state.entities.walls) {
+                const dx = x - w.x, dy = y - w.y;
+                const rad = -(w.angle || 0) * Math.PI / 180;
+                const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+                const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+                if (Math.abs(localX) <= w.width / 2 + SIZES.WALL_CLICK_PADDING &&
+                    Math.abs(localY) <= w.height / 2 + SIZES.WALL_CLICK_PADDING) {
+                    return { ent: w, action: 'move' };
+                }
+            }
+
+            const checkCircle = (ent, radius) => {
+                if (Math.hypot(x - getEntX(ent), y - getEntY(ent)) <= radius + SIZES.CLICK_PADDING) return { ent, action: 'move' };
+                return null;
+            };
+
+            let hit;
+            hit = checkCircle(state.player, SIZES.PLAYER_SIZE);
+            if (hit) { hit.ent.type = 'player'; return hit; }
+
+            for (let i = 0; i < state.blackHoles.length; i++) {
+                const bh = state.blackHoles[i];
+                hit = checkCircle(bh, SIZES.BH_RADIUS);
+                if (hit) { hit.ent.type = 'blackhole'; hit.ent.arrayIndex = i; return hit; }
+            }
+
+            for (const m of state.entities.monsters) {
+                hit = checkCircle(m, SIZES.MONSTER_SIZE);
+                if (hit) { hit.ent.type = 'monster'; return hit; }
+            }
+            for (const s of state.entities.words) {
+                hit = checkCircle(s, SIZES.WORD_SIZE);
+                if (hit) { hit.ent.type = 'word'; return hit; }
+            }
+
+            return null;
+        }
+
+        function mouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; e.preventDefault();
+            } else {
+                clientX = e.clientX; clientY = e.clientY;
+            }
+            const canvasX = (clientX - rect.left) * scaleX, canvasY = (clientY - rect.top) * scaleY;
+            const pos = toWorld(canvasX, canvasY);
+
+            if ((e.button === 1 || e.button === 2) && !e.touches) {
+                interaction.mode = 'pan'; interaction.startX = clientX; interaction.startY = clientY;
+                window.addEventListener('mousemove', mouseMove); window.addEventListener('mouseup', mouseUp);
+                return;
+            }
+
+            const hit = getHit(pos.x, pos.y);
+            if (hit) {
+                selected = hit.ent; interaction.mode = hit.action;
+                if (hit.action === 'move') {
+                    interaction.lastX = pos.x; interaction.lastY = pos.y;
+                } else if (hit.action === 'rotate') {
+                    interaction.startAngle = Math.atan2(pos.y - getEntY(hit.ent), pos.x - getEntX(hit.ent)) * 180 / Math.PI;
+                    interaction.originAngle = getEntAngle(hit.ent);
+                } else if (hit.action === 'resize') {
+                    interaction.lastX = pos.x; interaction.lastY = pos.y; interaction.corner = hit.corner;
+                }
+                updateProps();
+                if (!e.touches) {
+                    window.addEventListener('mousemove', mouseMove); window.addEventListener('mouseup', mouseUp);
+                } else {
+                    window.addEventListener('touchmove', mouseMove); window.addEventListener('touchend', mouseUp);
+                }
+            } else {
+                selected = null; updateProps();
+            }
+        }
+
+        function mouseMove(e) {
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; e.preventDefault();
+            } else {
+                clientX = e.clientX; clientY = e.clientY;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+            const canvasX = (clientX - rect.left) * scaleX, canvasY = (clientY - rect.top) * scaleY;
+            const pos = toWorld(canvasX, canvasY);
+
+            if (interaction.mode === 'pan') {
+                const dx = (clientX - interaction.startX) / view.scale, dy = (clientY - interaction.startY) / view.scale;
+                view.x -= dx; view.y -= dy; interaction.startX = clientX; interaction.startY = clientY;
+                return;
+            }
+
+            if (selected) {
+                if (interaction.mode === 'move') {
+                    const dx = pos.x - interaction.lastX, dy = pos.y - interaction.lastY;
+                    if (selected.type === 'blackhole') { selected[0] += dx; selected[1] += dy; }
+                    else { selected.x += dx; selected.y += dy; }
+                    interaction.lastX = pos.x; interaction.lastY = pos.y; updateProps();
+                }
+                else if (interaction.mode === 'rotate') {
+                    const currentAngle = Math.atan2(pos.y - getEntY(selected), pos.x - getEntX(selected)) * 180 / Math.PI;
+                    let newAngle = interaction.originAngle + (currentAngle - interaction.startAngle);
+                    while (newAngle > 180) newAngle -= 360; while (newAngle < -180) newAngle += 360;
+                    if (selected.type === 'blackhole') selected[3] = newAngle; else selected.angle = newAngle;
+                    updateProps();
+                }
+                else if (interaction.mode === 'resize' && selected.type === 'wall') {
+                    const dx = pos.x - interaction.lastX, dy = pos.y - interaction.lastY;
+                    const rad = (selected.angle || 0) * Math.PI / 180;
+                    const cos = Math.cos(rad), sin = Math.sin(rad);
+                    const localDx = dx * cos + dy * sin, localDy = -dx * sin + dy * cos;
+                    let widthChange = 0, heightChange = 0, centerOffX = 0, centerOffY = 0;
+                    if (interaction.corner.includes('right')) { widthChange = localDx; centerOffX = localDx / 2; }
+                    if (interaction.corner.includes('left')) { widthChange = -localDx; centerOffX = -localDx / 2; }
+                    if (interaction.corner.includes('bottom')) { heightChange = localDy; centerOffY = localDy / 2; }
+                    if (interaction.corner.includes('top')) { heightChange = -localDy; centerOffY = -localDy / 2; }
+                    selected.width = Math.max(50, selected.width + widthChange);
+                    selected.height = Math.max(30, selected.height + heightChange);
+                    selected.x += centerOffX * cos - centerOffY * sin;
+                    selected.y += centerOffX * sin + centerOffY * cos;
+                    interaction.lastX = pos.x; interaction.lastY = pos.y; updateProps();
+                }
+            } else {
+                const hit = getHit(pos.x, pos.y);
+                if (hit) canvas.style.cursor = hit.action === 'rotate' ? 'crosshair' : hit.action === 'resize' ? 'nwse-resize' : 'move';
+                else canvas.style.cursor = 'default';
+            }
+        }
+
+        function mouseUp(e) {
+            if (interaction.mode !== 'none') saveHistory();
+            interaction.mode = 'none';
+            window.removeEventListener('mousemove', mouseMove); window.removeEventListener('mouseup', mouseUp);
+            window.removeEventListener('touchmove', mouseMove); window.removeEventListener('touchend', mouseUp);
+        }
+
+        function wheel(e) {
+            e.preventDefault();
+            const factor = e.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = Math.max(0.05, Math.min(10, view.scale * factor));
+            const wx = toWorld(e.offsetX, 0).x, wy = toWorld(0, e.offsetY).y;
+            view.scale = newScale;
+            view.x = wx - (e.offsetX - canvas.width / 2) / view.scale;
+            view.y = wy - (e.offsetY - canvas.height / 2) / view.scale;
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('text/plain');
+            const pos = toWorld(e.offsetX, e.offsetY);
+            addEntity(type, pos.x, pos.y);
+        }
+
+        function loop() {
+            animTime += 0.02; render(); updateCounts(); requestAnimationFrame(loop);
+        }
+
+        function drawRotatedText(text, x, y, size, color, angle, outline = false) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle * Math.PI / 180);
+            ctx.font = `bold ${size}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillStyle = color;
+            if (outline) { ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeText(text, 0, 0); }
+            ctx.fillText(text, 0, 0); ctx.restore();
+        }
+
+        function render() {
+            ctx.fillStyle = '#050508'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save(); ctx.translate(canvas.width / 2, canvas.height / 2); ctx.scale(view.scale, view.scale); ctx.translate(-view.x, -view.y);
+            const gridSize = 1000;
+            ctx.strokeStyle = `rgba(40, 45, 55, 0.15)`; ctx.lineWidth = 1 / view.scale;
+            const startX = Math.floor((view.x - canvas.width / (2 * view.scale)) / gridSize) * gridSize;
+            const startY = Math.floor((view.y - canvas.height / (2 * view.scale)) / gridSize) * gridSize;
+            ctx.beginPath();
+            for (let x = startX; x <= view.x + canvas.width / (2 * view.scale); x += gridSize) { ctx.moveTo(x, 0); ctx.lineTo(x, state.world.h); }
+            for (let y = startY; y <= view.y + canvas.height / (2 * view.scale); y += gridSize) { ctx.moveTo(0, y); ctx.lineTo(state.world.w, y); }
+            ctx.stroke();
+            ctx.strokeStyle = '#2a3a50'; ctx.lineWidth = 20 / view.scale; ctx.strokeRect(0, 0, state.world.w, state.world.h);
+
+            state.entities.walls.forEach(w => drawWall(w));
+            state.entities.words.forEach(w => drawWord(w));
+            state.entities.monsters.forEach(m => drawMonster(m));
+            drawBH(); drawPlayer();
+            if (selected) drawSelection(selected);
+            ctx.restore(); updateStatusBar();
+        }
+
+        function drawSelection(ent) {
+            ctx.save();
+            ctx.translate(getEntX(ent), getEntY(ent)); ctx.rotate(getEntAngle(ent) * Math.PI / 180);
+            ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2 / view.scale; ctx.setLineDash([5 / view.scale, 5 / view.scale]);
+            if (ent.type === 'wall') {
+                ctx.strokeRect(-ent.width / 2, -ent.height / 2, ent.width, ent.height); ctx.setLineDash([]); ctx.fillStyle = '#ffd700';
+                [{ x: -ent.width / 2, y: -ent.height / 2 }, { x: ent.width / 2, y: -ent.height / 2 }, { x: ent.width / 2, y: ent.height / 2 }, { x: -ent.width / 2, y: ent.height / 2 }]
+                    .forEach(c => { ctx.beginPath(); ctx.arc(c.x, c.y, SIZES.HANDLE_SIZE / view.scale, 0, Math.PI * 2); ctx.fill(); });
+            } else {
+                let r = ent.type === 'player' ? SIZES.PLAYER_SIZE : ent.type === 'blackhole' ? SIZES.BH_RADIUS : SIZES.MONSTER_SIZE;
+                ctx.beginPath(); ctx.arc(0, 0, r + 10, 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.setLineDash([]);
+            let handleDist = ent.type === 'wall' ? Math.max(ent.width, ent.height) / 2 + SIZES.HANDLE_OFFSET : (ent.type === 'player' ? SIZES.PLAYER_SIZE : ent.type === 'blackhole' ? SIZES.BH_RADIUS : SIZES.MONSTER_SIZE) + SIZES.HANDLE_OFFSET;
+            ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2 / view.scale; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -handleDist); ctx.stroke();
+            ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.arc(0, -handleDist, SIZES.HANDLE_SIZE / view.scale, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPlayer() { drawRotatedText('-', state.player.x, state.player.y, SIZES.PLAYER_SIZE, '#fff', state.player.angle || 0, true); }
+
+        function drawBH() {
+            state.blackHoles.forEach((bh, index) => {
+                ctx.save(); ctx.translate(bh[0], bh[1]);
+                const rocheLimit = 500 + Math.pow(bh[2], 1 / 3) * 80;
+                ctx.strokeStyle = `rgba(150, 50, 150, ${0.3 + Math.sin(animTime * 2 + index) * 0.1})`; ctx.lineWidth = 5 / view.scale;
+                ctx.beginPath(); ctx.arc(0, 0, SIZES.BH_RADIUS, 0, Math.PI * 2); ctx.stroke();
+                ctx.strokeStyle = `rgba(100, 50, 150, 0.15)`; ctx.lineWidth = 2 / view.scale; ctx.setLineDash([10 / view.scale, 10 / view.scale]);
+                ctx.beginPath(); ctx.arc(0, 0, rocheLimit, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+                ctx.globalAlpha = 0.5; drawRotatedText(`BH${index + 1}`, 0, 0, 30, '#c080d0', 0); ctx.globalAlpha = 1.0;
+                ctx.restore();
+            });
+        }
+
+        function drawMonster(m) {
+            let color = m.monsterType === 1 ? '#00ff00' : m.monsterType === 8 ? '#fff' : '#fff';
+            let displayWord = (m.monsterType === 8 && m.inventory) ? `W:${m.inventory.length}` : m.word;
+            drawRotatedText(displayWord, m.x, m.y, SIZES.MONSTER_SIZE, color, m.angle || 0);
+        }
+
+        function drawWall(w) {
+            ctx.save(); ctx.translate(w.x, w.y); ctx.rotate((w.angle || 0) * Math.PI / 180);
+            ctx.fillStyle = 'rgba(20, 20, 25, 0.8)'; ctx.fillRect(-w.width / 2, -w.height / 2, w.width, w.height);
+            ctx.strokeStyle = '#607d8b'; ctx.lineWidth = 2 / view.scale; ctx.strokeRect(-w.width / 2, -w.height / 2, w.width, w.height);
+            ctx.fillStyle = '#a0aec0'; ctx.font = `bold ${SIZES.WORD_SIZE}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const text = w.word || 'WALL';
+            if (ctx.measureText(text).width > w.width - 20 && text.length > 1) {
+                const half = Math.ceil(text.length / 2); ctx.fillText(text.slice(0, half), 0, -10); ctx.fillText(text.slice(half), 0, 10);
+            } else ctx.fillText(text, 0, 0);
+            ctx.restore();
+        }
+
+        function drawWord(w) { drawRotatedText(w.word || 'WORD', w.x, w.y, SIZES.WORD_SIZE, '#e0e0e0', w.angle || 0); }
+        function updateStatusBar() { document.getElementById('status').textContent = `缩放: ${Math.round(view.scale * 100)}% | X: ${Math.round(view.x)} Y: ${Math.round(view.y)}`; }
+        function updateCounts() {
+            document.getElementById('m-count').textContent = state.entities.monsters.length;
+            document.getElementById('w-count').textContent = state.entities.walls.length;
+            document.getElementById('s-count').textContent = state.entities.words.length;
+        }
+
+        function addEntity(type, x, y) {
+            let ent;
+            if (type === 'player') { state.player.x = x; state.player.y = y; ent = state.player; ent.type = 'player'; }
+            else if (type === 'blackhole') { const newBH = [x, y, 1, 0]; state.blackHoles.push(newBH); ent = newBH; ent.type = 'blackhole'; ent.arrayIndex = state.blackHoles.length - 1; }
+            else if (type === 'wall') { ent = { id: Date.now(), type: 'wall', word: 'WALL', x, y, width: 200, height: 40, angle: 0 }; state.entities.walls.push(ent); }
+            else if (type === 'scattered') { ent = { id: Date.now(), type: 'word', word: 'WORD', x, y, angle: 0 }; state.entities.words.push(ent); }
+            else {
+                const typeVal = type === 'number' ? 1 : type === 'writer' ? 8 : 0;
+                const word = type === 'number' ? '1' : type === 'writer' ? 'W:0' : 'M';
+                ent = { id: Date.now(), type: 'monster', word, x, y, angle: 0, speed: 1, size: SIZES.MONSTER_SIZE, monsterType: typeVal, canThrow: false, canCombination: typeVal === 0, canToWall: false, canToAttackPlayer: false, inventory: [] };
+                state.entities.monsters.push(ent);
+            }
+            selected = ent; updateProps(); saveHistory();
+        }
+
+        function updateProps() {
+            const c = document.getElementById('props-content');
+            if (!selected) { c.innerHTML = '<div style="color:#4a4f5a; text-align:center; font-size:12px; margin-top:20px;">点击画布选择物体</div>'; return; }
+            const input = (label, id, val, type = 'number') => `<div class="row"><label>${label}</label><input type="${type}" id="${id}" value="${val}" onchange="editor.updateFromProps()"></div>`;
+            const textarea = (label, id, val) => `<div class="row"><label>${label}</label><textarea id="${id}" onchange="editor.updateFromProps()">${val}</textarea></div>`;
+            const switchHtml = (label, id, checked) => `<div class="switch-row"><span class="switch-label">${label}</span><label class="switch"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="editor.updateFromProps()"><span class="slider"></span></label></div>`;
+            let html = '';
+            if (selected.type === 'player') {
+                html = `<div style="color:#4CAF50; font-weight:600; margin-bottom:10px;">玩家</div>` + input('X坐标', 'p-x', Math.round(state.player.x)) + input('Y坐标', 'p-y', Math.round(state.player.y)) + input('旋转角度', 'p-angle', state.player.angle || 0);
+            } else if (selected.type === 'blackhole') {
+                html = `<div style="color:#ab47bc; font-weight:600; margin-bottom:10px;">黑洞 #${(selected.arrayIndex || 0) + 1}</div>` + input('X坐标', 'p-x', Math.round(selected[0])) + input('Y坐标', 'p-y', Math.round(selected[1])) + input('质量', 'p-mass', selected[2]) + input('旋转角度', 'p-angle', selected[3] || 0) + `<button class="danger" style="width:100%; margin-top:12px;" onclick="editor.deleteBH(${selected.arrayIndex || 0})">删除此黑洞</button>`;
+            } else {
+                if (selected.type === 'wall') {
+                    html = `<div style="color:#607d8b; font-weight:600; margin-bottom:10px;">墙壁</div>` + input('文字内容', 'p-word', selected.word, 'text') + input('X坐标', 'p-x', Math.round(selected.x)) + input('Y坐标', 'p-y', Math.round(selected.y)) + input('旋转角度', 'p-angle', selected.angle || 0) + input('宽度', 'p-width', selected.width) + input('高度', 'p-height', selected.height);
+                } else if (selected.type === 'word') {
+                    html = `<div style="color:#90a4ae; font-weight:600; margin-bottom:10px;">散落文字</div>` + input('文字内容', 'p-word', selected.word, 'text') + input('X坐标', 'p-x', Math.round(selected.x)) + input('Y坐标', 'p-y', Math.round(selected.y)) + input('旋转角度', 'p-angle', selected.angle || 0);
+                } else if (selected.type === 'monster') {
+                    const tLabel = selected.monsterType === 1 ? '数字怪物' : selected.monsterType === 8 ? '创作者' : '普通怪物';
+                    const tColor = selected.monsterType === 1 ? '#43a047' : selected.monsterType === 8 ? '#29b6f6' : '#e53935';
+                    html = `<div style="color:${tColor}; font-weight:600; margin-bottom:10px;">${tLabel}</div>` + input('文字内容', 'p-word', selected.word, 'text') + input('X坐标', 'p-x', Math.round(selected.x)) + input('Y坐标', 'p-y', Math.round(selected.y)) + input('旋转角度', 'p-angle', selected.angle || 0) + input('移动速度', 'p-speed', selected.speed || 1);
+                    if (selected.monsterType === 0) html += '<div style="margin-top:10px; border-top:1px solid #252830; padding-top:8px; font-size:11px; color:#5a5f70;">行为属性</div>' + switchHtml('能投掷', 'p-canThrow', selected.canThrow) + switchHtml('能组合', 'p-canComb', selected.canCombination) + switchHtml('能变墙', 'p-canWall', selected.canToWall) + switchHtml('主动攻击', 'p-canAtk', selected.canToAttackPlayer);
+                    if (selected.monsterType === 8) html += '<div style="margin-top:10px; border-top:1px solid #252830; padding-top:8px; font-size:11px; color:#5a5f70;">初始背包</div>' + textarea('物品 (逗号分隔)', 'p-inventory', (selected.inventory || []).join(', '));
+                }
+                html += `<button class="danger" style="width:100%; margin-top:12px;" onclick="editor.deleteSelected()">删除此物体</button>`;
+            }
+            c.innerHTML = html;
+        }
+
+        function updateFromProps() {
+            const get = id => parseFloat(document.getElementById(id).value);
+            const getStr = id => document.getElementById(id).value;
+            const getBool = id => document.getElementById(id) ? document.getElementById(id).checked : false;
+            if (selected.type === 'player') { state.player.x = get('p-x'); state.player.y = get('p-y'); state.player.angle = get('p-angle'); }
+            else if (selected.type === 'blackhole') { selected[0] = get('p-x'); selected[1] = get('p-y'); selected[2] = get('p-mass'); selected[3] = get('p-angle'); }
+            else {
+                selected.x = get('p-x'); selected.y = get('p-y');
+                if (document.getElementById('p-angle')) selected.angle = get('p-angle');
+                if (document.getElementById('p-word')) selected.word = getStr('p-word');
+                if (document.getElementById('p-width')) selected.width = Math.max(50, get('p-width'));
+                if (document.getElementById('p-height')) selected.height = Math.max(30, get('p-height'));
+                if (document.getElementById('p-speed')) selected.speed = get('p-speed');
+                if (document.getElementById('p-canThrow')) selected.canThrow = getBool('p-canThrow');
+                if (document.getElementById('p-canComb')) selected.canCombination = getBool('p-canComb');
+                if (document.getElementById('p-canWall')) selected.canToWall = getBool('p-canWall');
+                if (document.getElementById('p-canAtk')) selected.canToAttackPlayer = getBool('p-canAtk');
+                if (document.getElementById('p-inventory')) selected.inventory = getStr('p-inventory').split(',').map(s => s.trim()).filter(s => s.length > 0);
+            }
+            saveHistory();
+        }
+
+        function deleteSelected() {
+            if (!selected || selected.type === 'blackhole') return;
+            state.entities.monsters = state.entities.monsters.filter(e => e.id !== selected.id);
+            state.entities.walls = state.entities.walls.filter(e => e.id !== selected.id);
+            state.entities.words = state.entities.words.filter(e => e.id !== selected.id);
+            selected = null; updateProps(); saveHistory();
+        }
+
+        // ========== 修复后的导出函数 ==========
+        function exportMap() {
+            const saveData = [];
+
+            // 1. 玩家基础数据
+            saveData.push(state.player.x, state.player.y, state.player.speed);
+            saveData.push(state.meta.death, state.meta.score, state.meta.hp);
+            saveData.push(0.8); // gameSpeed
+            saveData.push(state.world.w, state.world.h, state.player.angle || 0);
+
+            // 2. 黑洞数据
+            saveData.push(state.blackHoles.length);
+            state.blackHoles.forEach(bh => {
+                saveData.push(bh[0], bh[1], bh[2], bh[3]);
+                saveData.push(0.5, 110, Math.random() * 6.283, 0, 0, 300);
+            });
+
+            // 3. 生成设置
+            saveData.push(state.spawns.count, state.spawns.max, state.spawns.min, state.spawns.invSize);
+
+            // 4. 实体
+            const allEntities = [];
+
+            state.entities.monsters.forEach(m => {
+                const e = new Array(32).fill(0);
+                e[0] = m.id;
+                e[1] = m.word;
+                e[2] = m.x;
+                e[3] = m.y;
+                e[4] = 0; e[5] = 0;
+                e[6] = m.speed || 1;
+                e[7] = m.size || 20;
+                e[8] = m.monsterType;
+                e[9] = m.angle || 0;
+                e[10] = 0;
+                e[11] = Math.random() * Math.PI * 2;
+                e[12] = 0;
+                e[13] = 60;
+                e[14] = m.canThrow ? 1 : 0;
+                e[15] = m.canCombination ? 1 : 0;
+                e[16] = m.canToWall ? 1 : 0;
+                e[17] = m.canToAttackPlayer ? 1 : 0;
+                e[18] = 0; e[19] = 0; e[20] = 0;
+                e[21] = 300;
+                e[22] = 0; e[23] = 0;
+                e[24] = m.monsterType === 1 ? 3 : 0;
+                e[30] = m.monsterType === 8 ? (m.inventory || []) : null;
+                allEntities.push(e);
+            });
+
+            state.entities.words.forEach(w => {
+                const e = new Array(32).fill(0);
+                e[0] = w.id;
+                e[1] = w.word;
+                e[2] = w.x;
+                e[3] = w.y;
+                e[8] = 2;
+                e[9] = w.angle || 0;
+                e[7] = 20;
+                allEntities.push(e);
+            });
+
+            saveData.push(allEntities.length);
+            allEntities.forEach(e => {
+                saveData.push(e[8]);
+                saveData.push(e.length);
+                for (let k = 0; k < e.length; k++) {
+                    if (k === 1 || k === 30) saveData.push(e[k] || '');
+                    else saveData.push(e[k] || 0);
+                }
+            });
+
+            // 5. 墙壁
+            saveData.push(state.entities.walls.length);
+            state.entities.walls.forEach(w => {
+                saveData.push(w.id);
+                saveData.push(w.word || 'WALL');
+                saveData.push(w.x);
+                saveData.push(w.y);
+                saveData.push(w.width || 200);
+                saveData.push(w.height || 40);
+                saveData.push(w.angle || 0);
+            });
+
+            // 6-7. 空数组
+            saveData.push(0, 0, 0, 0);
+
+            // 8. 玩家背包
+            saveData.push(state.player.inventory.length);
+            state.player.inventory.forEach(word => saveData.push(word));
+
+            const dataString = saveData.join('\n');
+            const blob = new Blob([dataString], { type: "text/plain" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `enSimulate_${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // ========== 修复后的导入函数 ==========
+        function importMap(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    let lineIdx = 0;
+
+                    const nextLine = () => {
+                        if (lineIdx >= lines.length) return null;
+                        return lines[lineIdx++];
+                    };
+
+                    const nextNum = () => {
+                        let val = nextLine();
+                        while (val !== null && val.trim() === '') val = nextLine();
+                        if (val === null) return 0;
+                        const num = parseFloat(val);
+                        return isNaN(num) ? 0 : num;
+                    };
+
+                    const nextStr = () => {
+                        let val = nextLine();
+                        while (val !== null && val.trim() === '') val = nextLine();
+                        return val || "";
+                    };
+
+                    console.log("开始解析存档，总行数:", lines.length);
+
+                    // 1. 玩家基础数据
+                    state.player.x = nextNum();
+                    state.player.y = nextNum();
+                    state.player.speed = nextNum();
+                    state.meta.death = nextNum();
+                    state.meta.score = nextNum();
+                    state.meta.hp = nextNum();
+                    nextNum(); // gameSpeed
+                    state.world.w = nextNum();
+                    state.world.h = nextNum();
+                    state.player.angle = nextNum();
+
+                    // 2. 黑洞数据
+                    const bhCount = Math.min(nextNum(), 50);
+                    state.blackHoles = [];
+                    for (let j = 0; j < bhCount; j++) {
+                        const bhX = nextNum();
+                        const bhY = nextNum();
+                        const bhMass = nextNum();
+                        const bhAngle = nextNum();
+                        for (let k = 0; k < 7; k++) nextNum();
+                        state.blackHoles.push([bhX, bhY, bhMass, bhAngle]);
+                    }
+
+                    // 3. 生成设置
+                    state.spawns.count = nextNum();
+                    state.spawns.max = nextNum();
+                    state.spawns.min = nextNum();
+                    state.spawns.invSize = nextNum();
+
+                    // 4. 实体读取
+                    const entityCount = Math.min(nextNum(), 2000);
+                    state.entities.monsters = [];
+                    state.entities.words = [];
+
+                    for (let j = 0; j < entityCount; j++) {
+                        const entType = nextNum();
+                        const entLen = Math.min(nextNum(), 100);
+
+                        const entData = [];
+                        for (let k = 0; k < entLen; k++) {
+                            if (k === 1) {
+                                entData.push(nextStr());
+                            } else if (k === 30) {
+                                const invStr = nextStr();
+                                try {
+                                    entData.push(invStr ? JSON.parse(invStr) : null);
+                                } catch {
+                                    entData.push(null);
+                                }
+                            } else {
+                                entData.push(nextNum());
+                            }
+                        }
+
+                        if (entData.length === 0) continue;
+
+                        const id = entData[0] || Date.now() + j;
+                        const word = entData[1] || "M";
+                        const x = entData[2] || 0;
+                        const y = entData[3] || 0;
+                        const angle = entData[9] || 0;
+
+                        if (entType === 2) {
+                            state.entities.words.push({
+                                id: id, word: word, x: x, y: y, angle: angle, type: 'word'
+                            });
+                        } else if (entType === 0 || entType === 1 || entType === 8) {
+                            state.entities.monsters.push({
+                                id: id, word: word, x: x, y: y,
+                                speed: entData[6] || 1, size: entData[7] || 20,
+                                monsterType: entType, angle: angle,
+                                canThrow: entData[14] === 1, canCombination: entData[15] === 1,
+                                canToWall: entData[16] === 1, canToAttackPlayer: entData[17] === 1,
+                                type: 'monster',
+                                inventory: (entType === 8 && entData[30]) ?
+                                    (Array.isArray(entData[30]) ? entData[30] : []) : []
+                            });
+                        }
+                    }
+
+                    // 5. 墙壁读取
+                    const wallCount = Math.min(nextNum(), 500);
+                    state.entities.walls = [];
+                    for (let j = 0; j < wallCount; j++) {
+                        const wallId = nextNum();
+                        const wallWord = nextStr();
+                        const wallX = nextNum();
+                        const wallY = nextNum();
+                        const wallWidth = nextNum();
+                        const wallHeight = nextNum();
+                        const wallAngle = nextNum();
+
+                        if (!wallWord) continue;
+
+                        const charWidth = 15;
+                        const maxChars = Math.max(1, Math.floor(wallWidth / charWidth));
+                        const lines = [];
+                        let remaining = wallWord;
+                        while (remaining.length > 0) {
+                            lines.push(remaining.slice(0, maxChars));
+                            remaining = remaining.slice(maxChars);
+                        }
+
+                        state.entities.walls.push({
+                            id: wallId, word: wallWord, x: wallX, y: wallY,
+                            width: Math.max(40, wallWidth), height: Math.max(20, wallHeight),
+                            angle: wallAngle, lines: lines, type: 'wall'
+                        });
+                    }
+
+                    // 6-7. 跳过旧数据
+                    let skipCount = nextNum();
+                    for (let j = 0; j < skipCount * 8; j++) nextNum();
+                    skipCount = nextNum();
+                    for (let j = 0; j < skipCount * 8; j++) nextNum();
+                    skipCount = nextNum();
+                    for (let j = 0; j < skipCount * 8; j++) nextNum();
+                    skipCount = nextNum();
+                    for (let j = 0; j < skipCount * 8; j++) nextNum();
+
+                    // 8. 玩家背包
+                    const invCount = Math.min(nextNum(), 100);
+                    state.player.inventory = [];
+                    for (let j = 0; j < invCount; j++) {
+                        const item = nextStr();
+                        if (item) state.player.inventory.push(item);
+                    }
+
+                    syncGlobalInputs();
+                    selected = null;
+                    view.x = state.player.x;
+                    view.y = state.player.y;
+                    view.scale = 1.0;
+                    saveHistory();
+
+                   
+
+                } catch (err) {
+                    console.error("导入错误:", err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function syncGlobalInputs() {
+            document.getElementById('w-w').value = state.world.w;
+            document.getElementById('w-h').value = state.world.h;
+            document.getElementById('w-hp').value = state.meta.hp;
+            document.getElementById('w-spd').value = state.player.speed;
+            document.getElementById('w-score').value = state.meta.score;
+            document.getElementById('w-death').value = state.meta.death;
+            document.getElementById('s-count').value = state.spawns.count;
+            document.getElementById('s-max').value = state.spawns.max;
+            document.getElementById('s-min').value = state.spawns.min;
+            document.getElementById('s-invsize').value = state.spawns.invSize;
+            document.getElementById('p-inv').value = state.player.inventory.join(', ');
+        }
+
+        function genTemplate(type) {
+            const cx = state.world.w / 2, cy = state.world.h / 2;
+            if (type === 'room') {
+                state.entities.walls.push({ id: Date.now(), word: 'N', x: cx, y: cy - 300, width: 600, height: 40, angle: 0, type: 'wall', lines: ['N'] });
+                state.entities.walls.push({ id: Date.now() + 1, word: 'S', x: cx, y: cy + 300, width: 600, height: 40, angle: 0, type: 'wall', lines: ['S'] });
+                state.entities.walls.push({ id: Date.now() + 2, word: 'W', x: cx - 300, y: cy, width: 40, height: 600, angle: 0, type: 'wall', lines: ['W'] });
+                state.entities.walls.push({ id: Date.now() + 3, word: 'E', x: cx + 300, y: cy, width: 40, height: 600, angle: 0, type: 'wall', lines: ['E'] });
+            }
+            saveHistory();
+        }
+
+        function saveHistory() {
+            history = history.slice(0, historyIndex + 1);
+            history.push(JSON.stringify(state));
+            historyIndex = history.length - 1;
+            if (history.length > 30) { history.shift(); historyIndex--; }
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--; state = JSON.parse(history[historyIndex]);
+                selected = null; updateProps(); syncGlobalInputs();
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++; state = JSON.parse(history[historyIndex]);
+                selected = null; updateProps(); syncGlobalInputs();
+            }
+        }
+
+        function clear() {
+            if (confirm('确定清空所有物体吗？此操作可撤销。')) {
+                state.entities = { monsters: [], walls: [], words: [] };
+                state.blackHoles = []; state.player.inventory = [];
+                selected = null; updateProps(); saveHistory(); syncGlobalInputs();
+            }
+        }
+
+        window.editor = {
+            updateFromProps, deleteSelected,
+            deleteBH: (index) => {
+                state.blackHoles.splice(index, 1); selected = null; updateProps(); saveHistory();
+            }
+        };
+
+        init();
+    </script>
+    
+</body>
+</html>
